@@ -27,16 +27,10 @@ pub struct SubmitDepositTransactionResponse {
 }
 
 /// Represents the response for getting deposit records.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetDepositRecordsResponse {
-    pub records: Vec<DepositRecord>,
-}
+pub type GetDepositRecordsResponse = Vec<DepositRecord>;
 
 /// Represents the response for getting withdrawal records.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetWithdrawalRecordsResponse {
-    pub records: Vec<WithdrawalRecord>,
-}
+pub type GetWithdrawalRecordsResponse = Vec<WithdrawalRecord>;
 
 /// Represents the response for getting order records.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -66,7 +60,4 @@ pub struct GetAccountInfoResponse {
 }
 
 /// Represents the response for getting account balances.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetAccountBalanceResponse {
-    pub balances: Vec<AssetBalance>,
-}
+pub type GetAccountBalanceResponse = Vec<AssetBalance>;

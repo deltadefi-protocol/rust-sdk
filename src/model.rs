@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "lowercase")]
 pub enum OrderStatus {
     Building,
+    Processing,
     Open,
     Closed,
     Failed,
+    Cancelled,
 }
 
 /// Represents the possible sides of an order.
@@ -37,6 +39,28 @@ pub enum TransactionStatus {
     Confirmed,
 }
 
+/// Represents the role in an order execution.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum OrderExecutionRole {
+    Maker,
+    Taker,
+}
+
+/// Represents an order execution record in JSON format.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrderExecutionRecordJSON {
+    pub id: String,
+    pub order_id: String,
+    pub execution_price: f64,
+    pub filled_amount: String,
+    pub fee_unit: String,
+    pub fee_amount: String,
+    pub role: OrderExecutionRole,
+    pub counter_party_order_id: String,
+    pub create_time: i64,
+}
+
 /// Represents an order in JSON format.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderJSON {
@@ -46,14 +70,15 @@ pub struct OrderJSON {
     pub orig_qty: String,
     pub executed_qty: String,
     pub side: OrderSide,
-    pub price: String,
+    pub price: f64,
     #[serde(rename = "type")]
     pub order_type: OrderType,
-    pub fee_amount: f64,
+    pub fee_charged: String,
     pub executed_price: f64,
     pub slippage: String,
     pub create_time: i64,
     pub update_time: i64,
+    pub fills: Option<Vec<OrderExecutionRecordJSON>>,
 }
 
 /// Represents a deposit record.
@@ -84,6 +109,7 @@ pub struct AssetBalance {
 /// Represents an asset (placeholder for the actual definition).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Asset {
-    pub name: String,
-    pub amount: i64,
+    pub asset: String,
+    pub asset_unit: String,
+    pub qty: i64,
 }

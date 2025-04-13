@@ -9,8 +9,16 @@ use market::Market;
 use order::Order;
 
 use reqwest::RequestBuilder;
-use serde::Serialize;
-use whisky::{Bip32KeyGenerator, Network, WError};
+use serde::{Deserialize, Serialize};
+use whisky::{Bip32KeyGenerator, WError};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Stage {
+    Mainnet,
+    Staging,
+    Dev,
+}
 
 pub struct DeltaDeFi {
     pub accounts: Accounts,
@@ -21,7 +29,7 @@ pub struct DeltaDeFi {
 }
 
 impl DeltaDeFi {
-    pub fn new(api_key: String, network: Network, signing_key: Option<String>) -> Self {
+    pub fn new(api_key: String, network: Stage, signing_key: Option<String>) -> Self {
         let wallet = match signing_key {
             Some(key) => Some(Bip32KeyGenerator::new(&key)),
             None => None,
@@ -43,15 +51,16 @@ impl DeltaDeFi {
 pub struct Api {
     pub base_url: String,
     pub api_key: String,
-    pub network: Network,
+    pub network: Stage,
     pub http_client: reqwest::Client,
 }
 
 impl Api {
-    pub fn new(api_key: String, network: Network) -> Self {
+    pub fn new(api_key: String, network: Stage) -> Self {
         let base_url = match network {
-            Network::Mainnet => "https://api-staging.deltadefi.io".to_string(),
-            _ => "https://api-staging.deltadefi.io".to_string(),
+            Stage::Mainnet => "https://api-staging.deltadefi.io".to_string(),
+            Stage::Staging => "https://api-staging.deltadefi.io".to_string(),
+            Stage::Dev => "https://api-dev.deltadefi.io".to_string(),
         };
 
         let http_client = reqwest::Client::builder()
