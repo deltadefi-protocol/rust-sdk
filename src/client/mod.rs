@@ -10,7 +10,7 @@ use order::Order;
 
 use reqwest::RequestBuilder;
 use serde::{Deserialize, Serialize};
-use whisky::{Bip32KeyGenerator, WError};
+use whisky::{decrypt_with_cipher, WError, Wallet, WalletType};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,13 +25,23 @@ pub struct DeltaDeFi {
     pub app: App,
     pub market: Market,
     pub order: Order,
-    pub wallet: Option<Bip32KeyGenerator>,
+    pub master_wallet: Option<Wallet>,
+    pub operation_wallet: Option<Wallet>,
 }
 
 impl DeltaDeFi {
-    pub fn new(api_key: String, network: Stage, signing_key: Option<String>) -> Self {
-        let wallet = match signing_key {
-            Some(key) => Some(Bip32KeyGenerator::new(&key)),
+    pub fn new(
+        api_key: String,
+        network: Stage,
+        master_key: Option<WalletType>,
+        operation_password: Option<String>,
+    ) -> Self {
+        let master_wallet = match master_key {
+            Some(key) => Some(Wallet::new(key, 0, 0)),
+            None => None,
+        };
+        let operation_wallet = match operation_password {
+            Some(password) => Some(Wallet::new(WalletType::Root(password), 0, 0)),
             None => None,
         };
 
@@ -42,7 +52,38 @@ impl DeltaDeFi {
             app: App::new(api.clone()),
             market: Market::new(api.clone()),
             order: Order::new(api),
-            wallet,
+            master_wallet,
+            operation_wallet,
+        }
+    }
+
+    pub async fn load_operation_key(&mut self, password: &str) -> Result<(), WError> {
+        let res = self
+            .accounts
+            .get_operation_key()
+            .await
+            .map_err(WError::from_err("DeltaDeFi - load_operation_key"))?;
+        let operation_key = decrypt_with_cipher(&res.encrypted_operation_key, password).map_err(
+            WError::from_err("DeltaDeFi - load_operation_key - decrypt_with_cipher"),
+        )?;
+        let operation_wallet = Wallet::new(WalletType::Root(operation_key), 0, 0);
+        self.operation_wallet = Some(operation_wallet);
+        Ok(())
+    }
+
+    pub fn sign_tx_by_master_key(&self, tx: &str) -> Result<String, WError> {
+        if let Some(wallet) = &self.master_wallet {
+            wallet.sign_tx(tx)
+        } else {
+            Err(WError::new("DeltaDeFi", "No wallet found"))
+        }
+    }
+
+    pub fn sign_tx_by_operation_key(&self, tx: &str) -> Result<String, WError> {
+        if let Some(wallet) = &self.operation_wallet {
+            wallet.sign_tx(tx)
+        } else {
+            Err(WError::new("DeltaDeFi", "No wallet found"))
         }
     }
 }
@@ -118,7 +159,7 @@ impl Api {
         let mut response_body = String::new();
         self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("Blockfrost - post - send_request"))?;
+            .map_err(WError::from_err("DeltaDeFi - post - send_request"))?;
         Ok(response_body)
     }
 
@@ -126,17 +167,16 @@ impl Api {
         let json_body = serde_json::to_string(&body)
             .map_err(WError::from_err("DeltaDeFi - post - json_body"))?;
 
-        let response = self
+        let req = self
             .http_client
-            .delete(url)
-            .body(json_body)
-            .send()
+            .delete(format!("{}{}", &self.base_url, url))
+            .header("Content-Type", "application/json")
+            .body(json_body);
+
+        let mut response_body = String::new();
+        self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("DeltaDeFi - delete - send"))?;
-        let body = response
-            .text()
-            .await
-            .map_err(WError::from_err("DeltaDeFi - delete - text"))?;
-        Ok(body)
+            .map_err(WError::from_err("DeltaDeFi - post - send_request"))?;
+        Ok(response_body)
     }
 }
