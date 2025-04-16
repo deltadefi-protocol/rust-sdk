@@ -6,7 +6,7 @@ name: Test
 on:
   release:
     types: [created]
-  pull_request:
+  push:
     branches:
       - main
 
@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: swatinem/rust-cache@v2
-      - name: Build whisky-common
+      - name: Build
         run: >
           cargo build
           --locked
