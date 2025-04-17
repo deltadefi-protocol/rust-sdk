@@ -6,7 +6,7 @@ use std::env;
 async fn test_get_operation_key() {
     dotenv().ok();
     let api_key = env::var("DELTADEFI_API_KEY").unwrap();
-    let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None, None);
+    let deltadefi = DeltaDeFi::new(api_key, Stage::Staging, None);
 
     let response = deltadefi.accounts.get_operation_key().await;
     match response {
