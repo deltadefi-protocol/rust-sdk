@@ -12,6 +12,8 @@ use reqwest::RequestBuilder;
 use serde::{Deserialize, Serialize};
 use whisky::{decrypt_with_cipher, WError, Wallet, WalletType};
 
+use crate::{order::SubmitPlaceOrderTransactionResponse, OrderSide, OrderType};
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Stage {
@@ -77,6 +79,46 @@ impl DeltaDeFi {
         } else {
             Err(WError::new("DeltaDeFi", "No wallet found"))
         }
+    }
+
+    pub async fn post_order(
+        &self,
+        symbol: &str,
+        side: OrderSide,
+        order_type: OrderType,
+        quantity: f64,
+        price: Option<f64>,
+        limit_slippage: Option<bool>,
+        max_slippage_basis_point: Option<u64>,
+    ) -> Result<SubmitPlaceOrderTransactionResponse, WError> {
+        let build_res = self
+            .order
+            .build_place_order_transaction(
+                symbol,
+                side,
+                order_type,
+                quantity,
+                price,
+                limit_slippage,
+                max_slippage_basis_point,
+            )
+            .await?;
+        let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
+        let res = self
+            .order
+            .submit_place_order_transaction(&build_res.order_id, &signed_tx)
+            .await;
+        res
+    }
+
+    pub async fn cancel_order(&self, order_id: &str) -> Result<String, WError> {
+        let build_res = self.order.build_cancel_order_transaction(order_id).await?;
+        let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
+        let res = self
+            .order
+            .submit_cancel_order_transaction(&signed_tx)
+            .await?;
+        Ok(res.tx_hash)
     }
 }
 
