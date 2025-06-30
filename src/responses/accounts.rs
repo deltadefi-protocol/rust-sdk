@@ -44,9 +44,21 @@ pub struct BuildWithdrawalTransactionResponse {
     pub tx_hex: String,
 }
 
+/// Represents the response for building a withdrawal transaction.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BuildTransferalTransactionResponse {
+    pub tx_hex: String,
+}
+
 /// Represents the response for submitting a withdrawal transaction.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SubmitWithdrawalTransactionResponse {
+    pub tx_hash: String,
+}
+
+/// Represents the response for submitting a withdrawal transaction.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SubmitTransferalTransactionResponse {
     pub tx_hash: String,
 }
 

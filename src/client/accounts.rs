@@ -79,6 +79,20 @@ impl Accounts {
         Ok(from_str(&response).map_err(WError::from_err("build_withdrawal_transaction"))?)
     }
 
+    pub async fn build_transferal_transaction(
+        &self,
+        transferal_amount: Vec<Asset>,
+        to_address: &str,
+    ) -> Result<BuildTransferalTransactionResponse, WError> {
+        let url = format!("{}/transferal/build", self.path_url);
+        let payload = serde_json::json!({
+            "transferal_amount": transferal_amount,
+            "to_address": to_address,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("build_transferal_transaction"))?)
+    }
+
     pub async fn submit_deposit_transaction(
         &self,
         signed_tx: &str,
@@ -101,5 +115,17 @@ impl Accounts {
         });
         let response = self.api.post(&url, payload).await?;
         Ok(from_str(&response).map_err(WError::from_err("submit_withdrawal_transaction"))?)
+    }
+
+    pub async fn submit_transferal_transaction(
+        &self,
+        signed_tx: &str,
+    ) -> Result<SubmitTransferalTransactionResponse, WError> {
+        let url = format!("{}/transferal/submit", self.path_url);
+        let payload = serde_json::json!({
+            "signed_tx": signed_tx,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("submit_transferal_transaction"))?)
     }
 }

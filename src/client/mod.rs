@@ -18,6 +18,7 @@ pub enum Stage {
     Mainnet,
     Staging,
     Dev,
+    Custom(String),
 }
 
 pub struct DeltaDeFi {
@@ -89,10 +90,11 @@ pub struct Api {
 
 impl Api {
     pub fn new(api_key: String, network: Stage) -> Self {
-        let base_url = match network {
+        let base_url = match &network {
             Stage::Mainnet => "https://api-staging.deltadefi.io".to_string(),
             Stage::Staging => "https://api-staging.deltadefi.io".to_string(),
             Stage::Dev => "https://api-dev.deltadefi.io".to_string(),
+            Stage::Custom(url) => url.to_string(),
         };
 
         let http_client = reqwest::Client::builder()

@@ -102,8 +102,8 @@ pub struct WithdrawalRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AssetBalance {
     pub asset: String,
-    pub free: i64,
-    pub locked: i64,
+    pub free: f64,
+    pub locked: f64,
 }
 
 /// Represents an asset (placeholder for the actual definition).
