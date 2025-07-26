@@ -2,14 +2,15 @@ use serde::{Deserialize, Serialize};
 
 /// Represents the possible statuses of an order.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum OrderStatus {
-    Building,
     Processing,
     Open,
-    Closed,
-    Failed,
+    FullyFilled,
+    PartiallyFilled,
     Cancelled,
+    PartiallyCancelled,
+    Failed,
 }
 
 /// Represents the possible sides of an order.
@@ -45,6 +46,14 @@ pub enum TransactionStatus {
 pub enum OrderExecutionRole {
     Maker,
     Taker,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OrderRecordStatus {
+    OpenOrder,
+    OrderHistory,
+    TradingHistory,
 }
 
 /// Represents an order execution record in JSON format.

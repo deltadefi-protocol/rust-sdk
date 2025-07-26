@@ -4,7 +4,7 @@ use whisky::WError;
 use crate::{
     order::{
         BuildCancelOrderTransactionResponse, BuildPlaceOrderTransactionResponse,
-        SubmitCancelOrderTransactionResponse, SubmitPlaceOrderTransactionResponse,
+        SubmitPlaceOrderTransactionResponse,
     },
     OrderSide, OrderType,
 };
@@ -115,16 +115,12 @@ impl Order {
     }
 
     /// Submits a cancel order transaction.
-    pub async fn submit_cancel_order_transaction(
-        &self,
-        signed_tx: &str,
-    ) -> Result<SubmitCancelOrderTransactionResponse, WError> {
+    pub async fn submit_cancel_order_transaction(&self, signed_tx: &str) -> Result<(), WError> {
         let url = format!("{}/submit", self.path_url);
         let payload = json!({
             "signed_tx": signed_tx,
         });
-        let response = self.api.delete(&url, payload).await?;
-        Ok(serde_json::from_str(&response)
-            .map_err(WError::from_err("submit_cancel_order_transaction"))?)
+        self.api.delete(&url, payload).await?;
+        Ok(())
     }
 }

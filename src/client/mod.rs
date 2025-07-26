@@ -111,14 +111,13 @@ impl DeltaDeFi {
         res
     }
 
-    pub async fn cancel_order(&self, order_id: &str) -> Result<String, WError> {
+    pub async fn cancel_order(&self, order_id: &str) -> Result<(), WError> {
         let build_res = self.order.build_cancel_order_transaction(order_id).await?;
         let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
-        let res = self
-            .order
+        self.order
             .submit_cancel_order_transaction(&signed_tx)
             .await?;
-        Ok(res.tx_hash)
+        Ok(())
     }
 }
 
@@ -178,6 +177,25 @@ impl Api {
         self.send_request(req, &mut response_body)
             .await
             .map_err(WError::from_err("DeltaDeFi - get - send_request"))?;
+        Ok(response_body)
+    }
+
+    pub async fn get_with_params<T: Serialize>(
+        &self,
+        url: &str,
+        params: &T,
+    ) -> Result<String, WError> {
+        let req = self
+            .http_client
+            .get(format!("{}{}", &self.base_url, url))
+            .query(params);
+
+        let mut response_body = String::new();
+        self.send_request(req, &mut response_body)
+            .await
+            .map_err(WError::from_err(
+                "DeltaDeFi - get_with_params - send_request",
+            ))?;
         Ok(response_body)
     }
 

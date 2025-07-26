@@ -19,9 +19,3 @@ pub struct SubmitPlaceOrderTransactionResponse {
 pub struct BuildCancelOrderTransactionResponse {
     pub tx_hex: String,
 }
-
-/// Represents the response for submitting a cancel order transaction.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SubmitCancelOrderTransactionResponse {
-    pub tx_hash: String,
-}

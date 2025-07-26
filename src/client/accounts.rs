@@ -2,7 +2,7 @@ use serde_json::from_str;
 use whisky::{Asset, UTxO, WError};
 
 use super::Api;
-use crate::responses::accounts::*;
+use crate::{responses::accounts::*, OrderRecordParams};
 
 pub struct Accounts {
     pub api: Api,
@@ -41,9 +41,29 @@ impl Accounts {
         Ok(from_str(&response).map_err(WError::from_err("get_withdrawal_records"))?)
     }
 
-    pub async fn get_order_records(&self) -> Result<GetOrderRecordResponse, WError> {
+    pub async fn get_order_records(
+        &self,
+        req: OrderRecordParams,
+    ) -> Result<GetOrderRecordResponse, WError> {
+        if let Some(limit) = req.limit {
+            if !(1..=250).contains(&limit) {
+                return Err(WError::new(
+                    "get_order_records",
+                    "Limit must be between 1 and 250",
+                ));
+            }
+        }
+        if let Some(page) = req.page {
+            if !(1..=1000).contains(&page) {
+                return Err(WError::new(
+                    "get_order_records",
+                    "Page must be between 1 and 1000",
+                ));
+            }
+        }
+
         let url = format!("{}/order-records", self.path_url);
-        let response = self.api.get(&url).await?;
+        let response = self.api.get_with_params(&url, &req).await?;
         Ok(from_str(&response).map_err(WError::from_err("get_order_records"))?)
     }
 
