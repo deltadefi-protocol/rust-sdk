@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::OrderRecordStatus;
+use crate::{OrderRecordStatus, Symbol, Interval};
 
 // Add this struct with your other models
 #[derive(Debug, Serialize)]
@@ -38,4 +38,13 @@ impl OrderRecordParams {
         self.symbol = Some(symbol);
         self
     }
+}
+
+/// Request for getting aggregated price data.
+#[derive(Debug, Serialize)]
+pub struct GetAggregatedPriceRequest {
+    pub symbol: Symbol,
+    pub interval: Interval,
+    pub start: i64,
+    pub end: i64,
 }

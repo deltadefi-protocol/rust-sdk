@@ -1,5 +1,27 @@
 use serde::{Deserialize, Serialize};
 
+/// Represents trading symbols.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Symbol {
+    #[serde(rename = "ADAUSDM")]
+    ADAUSDM,
+}
+
+/// Represents time intervals for aggregated price data.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Interval {
+    #[serde(rename = "5m")]
+    Interval5m,
+    #[serde(rename = "15m")]
+    Interval15m,
+    #[serde(rename = "30m")]
+    Interval30m,
+    #[serde(rename = "1h")]
+    Interval1h,
+    #[serde(rename = "1d")]
+    Interval1d,
+}
+
 /// Represents the possible statuses of an order.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

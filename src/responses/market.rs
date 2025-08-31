@@ -20,6 +20,25 @@ pub struct GetMarketPriceResponse {
     pub price: f64,
 }
 
+/// Represents a candlestick data point.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Candlestick {
+    #[serde(rename = "t")]
+    pub timestamp: i64,
+    #[serde(rename = "s")]
+    pub symbol: String,
+    #[serde(rename = "o")]
+    pub open: f64,
+    #[serde(rename = "h")]
+    pub high: f64,
+    #[serde(rename = "l")]
+    pub low: f64,
+    #[serde(rename = "c")]
+    pub close: f64,
+    #[serde(rename = "v")]
+    pub volume: f64,
+}
+
 /// Represents a trade in the aggregated price response.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trade {
@@ -33,4 +52,4 @@ pub struct Trade {
 }
 
 /// Represents the response for getting aggregated price data.
-pub type GetAggregatedPriceResponse = Vec<Trade>;
+pub type GetAggregatedPriceResponse = Vec<Candlestick>;
