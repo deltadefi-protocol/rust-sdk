@@ -33,22 +33,26 @@ pub struct DeltaDeFi {
 }
 
 impl DeltaDeFi {
-    pub fn new(api_key: String, network: Stage, master_key: Option<WalletType>) -> Self {
+    pub fn new(
+        api_key: String,
+        network: Stage,
+        master_key: Option<WalletType>,
+    ) -> Result<Self, WError> {
         let master_wallet = match master_key {
-            Some(key) => Some(Wallet::new(key)),
+            Some(key) => Some(Wallet::new(key).map_err(WError::from_err("DeltaDeFi - new"))?),
             None => None,
         };
 
         let api = Api::new(api_key, network);
 
-        DeltaDeFi {
+        Ok(DeltaDeFi {
             accounts: Accounts::new(api.clone()),
             app: App::new(api.clone()),
             market: Market::new(api.clone()),
             order: Order::new(api),
             master_wallet,
             operation_wallet: None,
-        }
+        })
     }
 
     pub async fn load_operation_key(&mut self, password: &str) -> Result<(), WError> {
@@ -60,7 +64,9 @@ impl DeltaDeFi {
         let operation_key = decrypt_with_cipher(&res.encrypted_operation_key, password).map_err(
             WError::from_err("DeltaDeFi - load_operation_key - decrypt_with_cipher"),
         )?;
-        let operation_wallet = Wallet::new_root_key(&operation_key);
+        let operation_wallet = Wallet::new_root_key(&operation_key).map_err(WError::from_err(
+            "DeltaDeFi - load_operation_key - create operation wallet",
+        ))?;
         self.operation_wallet = Some(operation_wallet);
         Ok(())
     }

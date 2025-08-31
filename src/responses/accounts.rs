@@ -1,4 +1,4 @@
-use crate::model::{AssetBalance, DepositRecord, OrderJSON, WithdrawalRecord};
+use crate::model::{AssetBalance, DepositRecord, OrderJSON, OrderFillingRecordJSON, WithdrawalRecord};
 use serde::{Deserialize, Serialize};
 
 /// Represents the response for creating a new API key.
@@ -32,10 +32,25 @@ pub type GetDepositRecordsResponse = Vec<DepositRecord>;
 /// Represents the response for getting withdrawal records.
 pub type GetWithdrawalRecordsResponse = Vec<WithdrawalRecord>;
 
-/// Represents the response for getting order records.
+/// Represents a single data item in the order records response.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetOrderRecordResponse {
+pub struct OrderRecordsData {
     pub orders: Vec<OrderJSON>,
+    pub order_filling_records: Vec<OrderFillingRecordJSON>,
+}
+
+/// Represents the response for getting order records (paginated).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetOrderRecordsResponse {
+    pub data: Vec<OrderRecordsData>,
+    pub total_count: i32,
+    pub total_page: i32,
+}
+
+/// Represents the response for getting a single order record by ID.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetOrderRecordByIdResponse {
+    pub order_json: OrderJSON,
 }
 
 /// Represents the response for building a withdrawal transaction.

@@ -2,7 +2,7 @@ use serde_json::from_str;
 use whisky::{Asset, UTxO, WError};
 
 use super::Api;
-use crate::{responses::accounts::*, OrderRecordParams};
+use crate::{responses::accounts::*, OrderRecordParams, OrderRecordStatus};
 
 pub struct Accounts {
     pub api: Api,
@@ -43,28 +43,36 @@ impl Accounts {
 
     pub async fn get_order_records(
         &self,
-        req: OrderRecordParams,
-    ) -> Result<GetOrderRecordResponse, WError> {
-        if let Some(limit) = req.limit {
-            if !(1..=250).contains(&limit) {
-                return Err(WError::new(
-                    "get_order_records",
-                    "Limit must be between 1 and 250",
-                ));
-            }
-        }
-        if let Some(page) = req.page {
-            if !(1..=1000).contains(&page) {
-                return Err(WError::new(
-                    "get_order_records",
-                    "Page must be between 1 and 1000",
-                ));
-            }
+        status: OrderRecordStatus,
+        limit: Option<u32>,
+        page: Option<u32>,
+        symbol: Option<String>,
+    ) -> Result<GetOrderRecordsResponse, WError> {
+        let url = format!("{}/order-records", self.path_url);
+
+        // page default to be 1 if none
+        let page = page.unwrap_or(1);
+        let limit = limit.unwrap_or(10);
+
+        let mut params = OrderRecordParams::new(status)
+            .with_limit(limit)
+            .with_page(page);
+
+        if let Some(symbol) = symbol {
+            params = params.with_symbol(symbol);
         }
 
-        let url = format!("{}/order-records", self.path_url);
-        let response = self.api.get_with_params(&url, &req).await?;
+        let response = self.api.get_with_params(&url, &params).await?;
         Ok(from_str(&response).map_err(WError::from_err("get_order_records"))?)
+    }
+
+    pub async fn get_order_record(
+        &self,
+        order_id: &str,
+    ) -> Result<GetOrderRecordByIdResponse, WError> {
+        let url = format!("{}/order/{}", self.path_url, order_id);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_order_record"))?)
     }
 
     pub async fn get_account_balance(&self) -> Result<GetAccountBalanceResponse, WError> {

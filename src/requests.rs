@@ -10,6 +10,8 @@ pub struct OrderRecordParams {
     pub limit: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
 }
 
 impl OrderRecordParams {
@@ -18,6 +20,7 @@ impl OrderRecordParams {
             status,
             limit: None,
             page: None,
+            symbol: None,
         }
     }
 
@@ -28,6 +31,11 @@ impl OrderRecordParams {
 
     pub fn with_page(mut self, page: u32) -> Self {
         self.page = Some(page);
+        self
+    }
+
+    pub fn with_symbol(mut self, symbol: String) -> Self {
+        self.symbol = Some(symbol);
         self
     }
 }

@@ -70,6 +70,23 @@ pub struct OrderExecutionRecordJSON {
     pub create_time: i64,
 }
 
+/// Represents an order filling record in JSON format.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrderFillingRecordJSON {
+    pub execution_id: String,
+    pub order_id: String,
+    pub status: String,
+    pub symbol: String,
+    pub executed_qty: String,
+    pub side: OrderSide,
+    #[serde(rename = "type")]
+    pub order_type: OrderType,
+    pub fee_charged: String,
+    pub fee_unit: String,
+    pub executed_price: f64,
+    pub create_time: u64,
+}
+
 /// Represents an order in JSON format.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderJSON {
@@ -120,5 +137,5 @@ pub struct AssetBalance {
 pub struct Asset {
     pub asset: String,
     pub asset_unit: String,
-    pub qty: i64,
+    pub qty: f64,
 }
