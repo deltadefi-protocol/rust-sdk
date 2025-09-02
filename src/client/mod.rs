@@ -1,10 +1,13 @@
+//! DeltaDeFi Client Module
+//!
+//! This module provides the core client functionality for interacting with the DeltaDeFi API.
+//! It includes the main `DeltaDeFi` client struct and supporting API infrastructure.
+
 mod accounts;
-mod app;
 mod market;
 mod order;
 
 use accounts::Accounts;
-use app::App;
 use market::Market;
 use order::Order;
 
@@ -14,25 +17,88 @@ use whisky::{decrypt_with_cipher, WError, Wallet, WalletType};
 
 use crate::{order::SubmitPlaceOrderTransactionResponse, OrderSide, OrderType};
 
+/// Network environment configuration for DeltaDeFi API endpoints.
+/// 
+/// Specifies which network environment to connect to, allowing for testing
+/// and development on different stages of the DeltaDeFi protocol.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Stage {
+    /// Production mainnet environment
     Mainnet,
+    /// Staging environment for testing
     Staging,
+    /// Development environment
     Dev,
+    /// Custom API endpoint URL
     Custom(String),
 }
 
+/// The main DeltaDeFi client for interacting with the DeltaDeFi protocol.
+///
+/// This struct provides access to all DeltaDeFi functionality including:
+/// - Account management (deposits, withdrawals, balances)
+/// - Market data (prices, historical data)
+/// - Order operations (place, cancel, track orders)
+/// - Wallet operations (transaction signing)
+///
+/// # Examples
+///
+/// ```rust
+/// use deltadefi::{DeltaDeFi, Stage};
+/// 
+/// let client = DeltaDeFi::new(
+///     "your-api-key".to_string(),
+///     Stage::Staging,
+///     None
+/// )?;
+/// ```
 pub struct DeltaDeFi {
+    /// Account management operations
     pub accounts: Accounts,
-    pub app: App,
+    /// Market data operations
     pub market: Market,
+    /// Order management operations
     pub order: Order,
+    /// Optional master wallet for transaction signing
     pub master_wallet: Option<Wallet>,
+    /// Optional operation wallet for transaction signing
     pub operation_wallet: Option<Wallet>,
 }
 
 impl DeltaDeFi {
+    /// Creates a new DeltaDeFi client instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `api_key` - Your DeltaDeFi API key for authentication
+    /// * `network` - The network environment to connect to
+    /// * `master_key` - Optional master wallet key for transaction signing
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the initialized client or a `WError` if initialization fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use deltadefi::{DeltaDeFi, Stage};
+    ///
+    /// // Basic client without wallet
+    /// let client = DeltaDeFi::new(
+    ///     "your-api-key".to_string(),
+    ///     Stage::Staging,
+    ///     None
+    /// )?;
+    ///
+    /// // Client with master wallet
+    /// use whisky::WalletType;
+    /// let client = DeltaDeFi::new(
+    ///     "your-api-key".to_string(),
+    ///     Stage::Mainnet,
+    ///     Some(WalletType::Mnemonic("your seed phrase".to_string()))
+    /// )?;
+    /// ```
     pub fn new(
         api_key: String,
         network: Stage,
@@ -47,7 +113,6 @@ impl DeltaDeFi {
 
         Ok(DeltaDeFi {
             accounts: Accounts::new(api.clone()),
-            app: App::new(api.clone()),
             market: Market::new(api.clone()),
             order: Order::new(api),
             master_wallet,
@@ -55,6 +120,37 @@ impl DeltaDeFi {
         })
     }
 
+    /// Loads the operation key required for transaction signing.
+    ///
+    /// This method fetches the encrypted operation key from the DeltaDeFi API,
+    /// decrypts it using the provided password, and stores it in the client
+    /// for subsequent transaction signing operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `password` - The password used to decrypt the operation key
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating success or failure. On success, the operation
+    /// wallet is available for signing transactions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let mut client = DeltaDeFi::new(api_key, Stage::Staging, None)?;
+    /// client.load_operation_key("your-password").await?;
+    /// 
+    /// // Now you can sign transactions
+    /// let signed_tx = client.sign_tx_by_operation_key(&tx_hex)?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - The API request fails
+    /// - The password is incorrect
+    /// - The operation key cannot be decrypted
     pub async fn load_operation_key(&mut self, password: &str) -> Result<(), WError> {
         let res = self
             .accounts
@@ -71,6 +167,27 @@ impl DeltaDeFi {
         Ok(())
     }
 
+    /// Signs a transaction using the master wallet key.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx` - The transaction hex string to sign
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the signed transaction hex string or a `WError` if signing fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let signed_tx = client.sign_tx_by_master_key(&tx_hex)?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - No master wallet is loaded
+    /// - The transaction signing fails
     pub fn sign_tx_by_master_key(&self, tx: &str) -> Result<String, WError> {
         if let Some(wallet) = &self.master_wallet {
             wallet.sign_tx(tx)
@@ -79,6 +196,32 @@ impl DeltaDeFi {
         }
     }
 
+    /// Signs a transaction using the operation wallet key.
+    ///
+    /// This is the preferred method for signing most transactions as it uses
+    /// the operation key which is specifically designed for trading operations.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx` - The transaction hex string to sign
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the signed transaction hex string or a `WError` if signing fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Make sure operation key is loaded first
+    /// client.load_operation_key("password").await?;
+    /// let signed_tx = client.sign_tx_by_operation_key(&tx_hex)?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - No operation wallet is loaded (call `load_operation_key` first)
+    /// - The transaction signing fails
     pub fn sign_tx_by_operation_key(&self, tx: &str) -> Result<String, WError> {
         if let Some(wallet) = &self.operation_wallet {
             wallet.sign_tx(tx)
@@ -87,6 +230,58 @@ impl DeltaDeFi {
         }
     }
 
+    /// Convenience method to place an order with automatic transaction building and signing.
+    ///
+    /// This method combines building the order transaction, signing it with the operation key,
+    /// and submitting it to the DeltaDeFi protocol in a single call.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "ADAUSDM")
+    /// * `side` - Order side: `OrderSide::Buy` or `OrderSide::Sell`
+    /// * `order_type` - Order type: `OrderType::Market` or `OrderType::Limit`
+    /// * `quantity` - The amount to trade
+    /// * `price` - Required for limit orders, ignored for market orders
+    /// * `limit_slippage` - Whether to limit slippage for market orders
+    /// * `max_slippage_basis_point` - Maximum slippage in basis points (100 = 1%)
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the order submission response with order ID.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Place a limit buy order
+    /// let response = client.post_order(
+    ///     "ADAUSDM",
+    ///     OrderSide::Buy,
+    ///     OrderType::Limit,
+    ///     100.0,
+    ///     Some(1.25),  // Limit price
+    ///     None,
+    ///     None,
+    /// ).await?;
+    ///
+    /// // Place a market sell order with slippage protection
+    /// let response = client.post_order(
+    ///     "ADAUSDM",
+    ///     OrderSide::Sell,
+    ///     OrderType::Market,
+    ///     50.0,
+    ///     None,           // No price for market orders
+    ///     Some(true),     // Enable slippage protection
+    ///     Some(100),      // Max 1% slippage
+    /// ).await?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - No operation wallet is loaded (call `load_operation_key` first)
+    /// - Order parameters are invalid
+    /// - Network request fails
+    /// - Transaction signing fails
     pub async fn post_order(
         &self,
         symbol: &str,
@@ -117,6 +312,34 @@ impl DeltaDeFi {
         res
     }
 
+    /// Convenience method to cancel an existing order with automatic transaction building and signing.
+    ///
+    /// This method builds the cancel order transaction, signs it with the operation key,
+    /// and submits it to the DeltaDeFi protocol in a single call.
+    ///
+    /// # Arguments
+    ///
+    /// * `order_id` - The ID of the order to cancel
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating success or failure of the cancellation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Cancel an order by its ID
+    /// client.cancel_order("order-id-123").await?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - No operation wallet is loaded (call `load_operation_key` first)
+    /// - Order ID is invalid or order doesn't exist
+    /// - Order cannot be cancelled (already filled or cancelled)
+    /// - Network request fails
+    /// - Transaction signing fails
     pub async fn cancel_order(&self, order_id: &str) -> Result<(), WError> {
         let build_res = self.order.build_cancel_order_transaction(order_id).await?;
         let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
@@ -127,11 +350,19 @@ impl DeltaDeFi {
     }
 }
 
+/// Internal API client for handling HTTP requests to DeltaDeFi endpoints.
+///
+/// This struct manages the HTTP client, authentication, and request routing
+/// for all API operations. It's used internally by the various module clients.
 #[derive(Clone)]
 pub struct Api {
+    /// Base URL for the DeltaDeFi API
     pub base_url: String,
+    /// API key for authentication
     pub api_key: String,
+    /// Network environment configuration
     pub network: Stage,
+    /// HTTP client for making requests
     pub http_client: reqwest::Client,
 }
 
