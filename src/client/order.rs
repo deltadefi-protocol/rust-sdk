@@ -11,7 +11,8 @@ use whisky::WError;
 
 use crate::{
     order::{
-        BuildCancelOrderTransactionResponse, BuildPlaceOrderTransactionResponse,
+        BuildCancelAllOrdersTransactionResponse, BuildCancelOrderTransactionResponse,
+        BuildPlaceOrderTransactionResponse, SubmitCancelAllOrdersTransactionResponse,
         SubmitPlaceOrderTransactionResponse,
     },
     OrderSide, OrderType,
@@ -54,6 +55,7 @@ impl Order {
     /// * `price` - Required for limit orders, ignored for market orders
     /// * `limit_slippage` - Whether to enable slippage protection for market orders
     /// * `max_slippage_basis_point` - Maximum acceptable slippage in basis points (e.g., 100 = 1%)
+    /// * `post_only` - If true, the order will only be posted to the order book and not executed immediately
     ///
     /// # Returns
     ///
@@ -71,6 +73,7 @@ impl Order {
     ///     Some(1.25),  // Limit price
     ///     None,
     ///     None,
+    ///     None,
     /// ).await?;
     ///
     /// // Build a market sell order with slippage protection
@@ -82,6 +85,7 @@ impl Order {
     ///     None,        // No price for market orders
     ///     Some(true),  // Enable slippage protection
     ///     Some(100),   // Max 1% slippage
+    ///     None,
     /// ).await?;
     /// ```
     ///
@@ -109,6 +113,7 @@ impl Order {
         price: Option<f64>,
         limit_slippage: Option<bool>,
         max_slippage_basis_point: Option<u64>,
+        post_only: Option<bool>,
     ) -> Result<BuildPlaceOrderTransactionResponse, WError> {
         // Validate required parameters
         if symbol.is_empty() {
@@ -153,6 +158,7 @@ impl Order {
             "price": price,
             "limit_slippage": limit_slippage,
             "max_slippage_basis_point": max_slippage_basis_point,
+            "post_only": post_only,
         });
 
         // Send the request
@@ -168,6 +174,16 @@ impl Order {
         order_id: &str,
     ) -> Result<BuildCancelOrderTransactionResponse, WError> {
         let url = format!("{}/{}/build", self.path_url, order_id);
+        let response = self.api.delete(&url, json!({})).await?;
+        Ok(serde_json::from_str(&response)
+            .map_err(WError::from_err("build_cancel_order_transaction"))?)
+    }
+
+    /// Builds cancel all orders transaction.
+    pub async fn build_cancel_all_orders_transaction(
+        &self,
+    ) -> Result<BuildCancelAllOrdersTransactionResponse, WError> {
+        let url = format!("{}/cancel-all/build", self.path_url);
         let response = self.api.delete(&url, json!({})).await?;
         Ok(serde_json::from_str(&response)
             .map_err(WError::from_err("build_cancel_order_transaction"))?)
@@ -197,5 +213,18 @@ impl Order {
         });
         self.api.delete(&url, payload).await?;
         Ok(())
+    }
+    /// Submits a cancel all orders transaction.
+    pub async fn submit_cancel_all_orders_transaction(
+        &self,
+        signed_txs: &[String],
+    ) -> Result<SubmitCancelAllOrdersTransactionResponse, WError> {
+        let url = format!("{}/cancel-all/submit", self.path_url);
+        let payload = json!({
+            "signed_txs": signed_txs,
+        });
+        let response = self.api.delete(&url, payload).await?;
+        Ok(serde_json::from_str(&response)
+            .map_err(WError::from_err("submit_cancel_all_orders_transaction"))?)
     }
 }

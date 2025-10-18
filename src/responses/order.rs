@@ -19,3 +19,15 @@ pub struct SubmitPlaceOrderTransactionResponse {
 pub struct BuildCancelOrderTransactionResponse {
     pub tx_hex: String,
 }
+
+/// Represents the response for building a cancel all orders transaction.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BuildCancelAllOrdersTransactionResponse {
+    pub tx_hexes: Vec<String>,
+}
+
+/// Represents the response for submitting a cancel all orders transaction.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SubmitCancelAllOrdersTransactionResponse {
+    pub cancelled_order_ids: Vec<String>,
+}

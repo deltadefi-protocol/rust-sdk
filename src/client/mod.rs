@@ -18,7 +18,7 @@ use whisky::{decrypt_with_cipher, WError, Wallet, WalletType};
 use crate::{order::SubmitPlaceOrderTransactionResponse, OrderSide, OrderType};
 
 /// Network environment configuration for DeltaDeFi API endpoints.
-/// 
+///
 /// Specifies which network environment to connect to, allowing for testing
 /// and development on different stages of the DeltaDeFi protocol.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ pub enum Stage {
 ///
 /// ```rust
 /// use deltadefi::{DeltaDeFi, Stage};
-/// 
+///
 /// let client = DeltaDeFi::new(
 ///     "your-api-key".to_string(),
 ///     Stage::Staging,
@@ -140,7 +140,7 @@ impl DeltaDeFi {
     /// ```rust
     /// let mut client = DeltaDeFi::new(api_key, Stage::Staging, None)?;
     /// client.load_operation_key("your-password").await?;
-    /// 
+    ///
     /// // Now you can sign transactions
     /// let signed_tx = client.sign_tx_by_operation_key(&tx_hex)?;
     /// ```
@@ -291,6 +291,7 @@ impl DeltaDeFi {
         price: Option<f64>,
         limit_slippage: Option<bool>,
         max_slippage_basis_point: Option<u64>,
+        post_only: Option<bool>,
     ) -> Result<SubmitPlaceOrderTransactionResponse, WError> {
         let build_res = self
             .order
@@ -302,6 +303,7 @@ impl DeltaDeFi {
                 price,
                 limit_slippage,
                 max_slippage_basis_point,
+                post_only,
             )
             .await?;
         let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
