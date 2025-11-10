@@ -28,10 +28,8 @@ pub enum Stage {
     Mainnet,
     /// Staging environment for testing
     Staging,
-    /// Development environment
-    Dev,
     /// Custom API endpoint URL
-    Custom(String),
+    Custom(String, String),
 }
 
 /// The main DeltaDeFi client for interacting with the DeltaDeFi protocol.
@@ -350,6 +348,43 @@ impl DeltaDeFi {
             .await?;
         Ok(())
     }
+
+    /// Convenience method to cancel all open orders with automatic transaction building and signing.
+    ///
+    /// This method builds cancel transactions for all currently open orders, signs each transaction
+    /// with the operation key, and submits them to the DeltaDeFi protocol in a single batch operation.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating success or failure of the bulk cancellation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Cancel all open orders
+    /// client.cancel_all_orders().await?;
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - No operation wallet is loaded (call `load_operation_key` first)
+    /// - No open orders exist to cancel
+    /// - Network request fails
+    /// - Transaction signing fails for any of the orders
+    /// - Batch submission to the protocol fails
+    pub async fn cancel_all_orders(&self) -> Result<(), WError> {
+        let build_res = self.order.build_cancel_all_orders_transaction().await?;
+        let mut signed_txs = vec![];
+        for tx_hex in build_res.tx_hexes.iter() {
+            let signed_tx = self.sign_tx_by_operation_key(tx_hex)?;
+            signed_txs.push(signed_tx);
+        }
+        self.order
+            .submit_cancel_all_orders_transaction(&signed_txs)
+            .await?;
+        Ok(())
+    }
 }
 
 /// Internal API client for handling HTTP requests to DeltaDeFi endpoints.
@@ -360,6 +395,8 @@ impl DeltaDeFi {
 pub struct Api {
     /// Base URL for the DeltaDeFi API
     pub base_url: String,
+    /// Websocket URL for the DeltaDeFi stream
+    pub ws_url: String,
     /// API key for authentication
     pub api_key: String,
     /// Network environment configuration
@@ -370,11 +407,16 @@ pub struct Api {
 
 impl Api {
     pub fn new(api_key: String, network: Stage) -> Self {
-        let base_url = match &network {
-            Stage::Mainnet => "https://api-staging.deltadefi.io".to_string(),
-            Stage::Staging => "https://api-staging.deltadefi.io".to_string(),
-            Stage::Dev => "https://api-dev.deltadefi.io".to_string(),
-            Stage::Custom(url) => url.to_string(),
+        let (base_url, ws_url) = match &network {
+            Stage::Mainnet => (
+                "https://api.deltadefi.io/".to_string(),
+                "wss://stream.deltadefi.io".to_string(),
+            ),
+            Stage::Staging => (
+                "https://api-staging.deltadefi.io".to_string(),
+                "wss://stream-staging.deltadefi.io".to_string(),
+            ),
+            Stage::Custom(url, ws_url) => (url.to_string(), ws_url.to_string()),
         };
 
         let http_client = reqwest::Client::builder()
@@ -386,6 +428,7 @@ impl Api {
             api_key,
             network,
             base_url,
+            ws_url,
             http_client,
         }
     }
