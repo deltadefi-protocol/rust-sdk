@@ -10,11 +10,23 @@ use serde::{Deserialize, Serialize};
 ///
 /// Represents the available trading pairs that can be used for placing orders
 /// and retrieving market data.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Symbol {
     /// ADA to USDM trading pair
     #[serde(rename = "ADAUSDM")]
     ADAUSDM,
+    /// HOSKY to USDM trading pair
+    #[serde(rename = "HOSKYUSDM")]
+    HOSKYUSDM,
+    /// NIGHT to USDM trading pair
+    #[serde(rename = "NIGHTUSDM")]
+    NIGHTUSDM,
+    /// IAG to USDM trading pair
+    #[serde(rename = "IAGUSDM")]
+    IAGUSDM,
+    /// SNEK to USDM trading pair
+    #[serde(rename = "SNEKUSDM")]
+    SNEKUSDM,
 }
 
 /// Time intervals for aggregated market data.
@@ -141,28 +153,90 @@ pub enum OrderRecordStatus {
 /// Represents a single trade execution that occurred when an order was matched.
 /// An order may have multiple execution records if it was filled in multiple trades.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OrderExecutionRecordJSON {
+pub struct OrderExecutionRecord {
     /// Unique execution identifier
     pub id: String,
     /// ID of the order that was executed
     pub order_id: String,
+    /// Account ID of the order owner
+    pub account_id: String,
     /// Price at which the execution occurred
-    pub execution_price: f64,
-    /// Amount filled in this execution
-    pub filled_amount: String,
-    /// Unit of the fee charged (e.g., "ADA", "USDM")
-    pub fee_unit: String,
-    /// Fee amount charged for this execution
-    pub fee_amount: String,
+    pub execution_price: String,
+    /// Base quantity filled in this execution
+    pub filled_base_qty: String,
+    /// Quote quantity filled in this execution
+    pub filled_quote_qty: String,
+    /// Unit of the commission charged (e.g., "ADA", "USDM")
+    pub commission_unit: String,
+    /// Commission amount charged for this execution
+    pub commission: String,
     /// Role in this execution (maker or taker)
     pub role: OrderExecutionRole,
     /// Order ID of the counterparty in this execution
     pub counter_party_order_id: String,
-    /// Timestamp when this execution occurred (Unix timestamp)
-    pub create_time: i64,
+    /// Timestamp when this execution occurred (ISO 8601 format)
+    pub created_at: String,
 }
 
-/// Represents an order filling record in JSON format.
+/// Represents an order response from the API.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Order {
+    /// Unique order identifier
+    pub id: String,
+    /// Account ID that owns this order
+    pub account_id: String,
+    /// Active order UTXO ID (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active_order_utxo_id: Option<String>,
+    /// Current order status
+    pub status: OrderStatus,
+    /// Trading pair symbol
+    pub symbol: String,
+    /// Base quantity for the order
+    pub base_qty: String,
+    /// Quote quantity for the order
+    pub quote_qty: String,
+    /// Order side (buy/sell)
+    pub side: OrderSide,
+    /// Order price
+    pub price: String,
+    /// Order type (market/limit)
+    #[serde(rename = "type")]
+    pub order_type: OrderType,
+    /// Slippage in basis points (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slippage_bp: Option<u64>,
+    /// Market order limit price (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub market_order_limit_price: Option<String>,
+    /// Locked base quantity
+    pub locked_base_qty: String,
+    /// Locked quote quantity
+    pub locked_quote_qty: String,
+    /// Executed base quantity
+    pub executed_base_qty: String,
+    /// Executed quote quantity
+    pub executed_quote_qty: String,
+    /// Open order base quantity in orderbook
+    pub ob_open_order_base_qty: String,
+    /// Commission unit
+    pub commission_unit: String,
+    /// Total commission charged
+    pub commission: String,
+    /// Commission rate in basis points
+    pub commission_rate_bp: u64,
+    /// Executed price
+    pub executed_price: String,
+    /// Order creation timestamp (ISO 8601 format)
+    pub created_at: String,
+    /// Order last update timestamp (ISO 8601 format)
+    pub updated_at: String,
+    /// Order execution records (fills)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_execution_records: Option<Vec<OrderExecutionRecord>>,
+}
+
+/// Represents an order filling record in JSON format (legacy compatibility).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderFillingRecordJSON {
     pub execution_id: String,
@@ -175,11 +249,12 @@ pub struct OrderFillingRecordJSON {
     pub order_type: OrderType,
     pub fee_charged: String,
     pub fee_unit: String,
-    pub executed_price: f64,
+    pub executed_price: String,
     pub create_time: u64,
 }
 
-/// Represents an order in JSON format.
+/// Legacy order format for backward compatibility.
+/// Use `Order` for new implementations.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderJSON {
     pub order_id: String,
@@ -196,7 +271,7 @@ pub struct OrderJSON {
     pub slippage: String,
     pub create_time: i64,
     pub update_time: i64,
-    pub fills: Option<Vec<OrderExecutionRecordJSON>>,
+    pub fills: Option<Vec<OrderExecutionRecord>>,
 }
 
 /// Represents a deposit record.
@@ -214,6 +289,16 @@ pub struct WithdrawalRecord {
     pub created_at: String,
     pub status: TransactionStatus,
     pub assets: Vec<Asset>,
+}
+
+/// Represents a transferal record.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TransferalRecord {
+    pub created_at: String,
+    pub status: TransactionStatus,
+    pub assets: Vec<Asset>,
+    pub to_address: String,
+    pub tx_hash: Option<String>,
 }
 
 /// Represents an asset balance.

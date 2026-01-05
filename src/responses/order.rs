@@ -1,5 +1,9 @@
-use crate::model::OrderJSON;
-use serde::{Deserialize, Serialize}; // Assuming OrderJSON is defined in the `model` module.
+//! Order Response Types
+//!
+//! This module contains response types for order-related API operations.
+
+use crate::model::Order;
+use serde::{Deserialize, Serialize};
 
 /// Represents the response for building a place order transaction.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -11,23 +15,18 @@ pub struct BuildPlaceOrderTransactionResponse {
 /// Represents the response for submitting a place order transaction.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SubmitPlaceOrderTransactionResponse {
-    pub order: OrderJSON,
+    pub order: Order,
 }
 
-/// Represents the response for building a cancel order transaction.
+/// Represents the response for cancelling a single order.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BuildCancelOrderTransactionResponse {
-    pub tx_hex: String,
+pub struct CancelOrderResponse {
+    pub order_id: String,
 }
 
-/// Represents the response for building a cancel all orders transaction.
+/// Represents the response for cancelling all orders.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BuildCancelAllOrdersTransactionResponse {
-    pub tx_hexes: Vec<String>,
-}
-
-/// Represents the response for submitting a cancel all orders transaction.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SubmitCancelAllOrdersTransactionResponse {
-    pub cancelled_order_ids: Vec<String>,
+pub struct CancelAllOrdersResponse {
+    pub symbol: String,
+    pub order_ids: Vec<String>,
 }

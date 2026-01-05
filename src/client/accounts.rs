@@ -5,13 +5,26 @@
 //! - Deposit and withdrawal operations
 //! - Balance inquiries
 //! - Transaction history
-//! - Account-related API operations
+//! - Order queries
+//! - Spot account management
 
+use serde::Serialize;
 use serde_json::from_str;
 use whisky::{Asset, UTxO, WError};
 
 use super::Api;
-use crate::{responses::accounts::*, OrderRecordParams, OrderRecordStatus};
+use crate::responses::accounts::*;
+
+/// Query parameters for paginated order requests.
+#[derive(Debug, Serialize)]
+pub struct OrderQueryParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+}
 
 /// Client for account-related operations on the DeltaDeFi platform.
 ///
@@ -33,29 +46,9 @@ impl Accounts {
         }
     }
 
+    // ==================== API Key & Operation Key ====================
+
     /// Retrieves the encrypted operation key from the DeltaDeFi API.
-    ///
-    /// The operation key is required for signing transactions and must be decrypted
-    /// using the account password before it can be used.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result` containing the encrypted operation key and its hash,
-    /// or a `WError` if the request fails.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let operation_key_response = client.accounts.get_operation_key().await?;
-    /// println!("Encrypted key: {}", operation_key_response.encrypted_operation_key);
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// This method will return an error if:
-    /// - API authentication fails
-    /// - Network request fails
-    /// - Account doesn't have an operation key configured
     pub async fn get_operation_key(&self) -> Result<GetOperationKeyResponse, WError> {
         let url = format!("{}/operation-key", self.path_url);
         let response = self.api.get(&url).await?;
@@ -63,152 +56,87 @@ impl Accounts {
     }
 
     /// Creates a new API key for the account.
-    ///
-    /// Generates a new API key that can be used for authentication with the DeltaDeFi API.
-    /// This is useful for creating additional API keys or rotating existing ones.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result` containing the new API key string, or a `WError` if creation fails.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let new_key_response = client.accounts.create_new_api_key().await?;
-    /// println!("New API key: {}", new_key_response.api_key);
-    /// ```
-    ///
-    /// # Security
-    ///
-    /// Store the returned API key securely and never expose it in logs or client-side code.
-    ///
-    /// # Errors
-    ///
-    /// This method will return an error if:
-    /// - API authentication fails
-    /// - Account has reached the maximum number of API keys
-    /// - Network request fails
     pub async fn create_new_api_key(&self) -> Result<CreateNewAPIKeyResponse, WError> {
         let url = format!("{}/new-api-key", self.path_url);
         let response = self.api.get(&url).await?;
         Ok(from_str(&response).map_err(WError::from_err("create_new_api_key"))?)
     }
 
-    pub async fn get_deposit_records(&self) -> Result<GetDepositRecordsResponse, WError> {
-        let url = format!("{}/deposit-records", self.path_url);
+    /// Gets the current API key information.
+    pub async fn get_api_key(&self) -> Result<GetAPIKeyResponse, WError> {
+        let url = format!("{}/api-key", self.path_url);
         let response = self.api.get(&url).await?;
-        Ok(from_str(&response).map_err(WError::from_err("get_deposit_records"))?)
+        Ok(from_str(&response).map_err(WError::from_err("get_api_key"))?)
     }
 
-    pub async fn get_withdrawal_records(&self) -> Result<GetWithdrawalRecordsResponse, WError> {
-        let url = format!("{}/withdrawal-records", self.path_url);
+    // ==================== Spot Account ====================
+
+    /// Gets the spot account information.
+    pub async fn get_spot_account(&self) -> Result<GetSpotAccountResponse, WError> {
+        let url = format!("{}/spot-account", self.path_url);
         let response = self.api.get(&url).await?;
-        Ok(from_str(&response).map_err(WError::from_err("get_withdrawal_records"))?)
+        Ok(from_str(&response).map_err(WError::from_err("get_spot_account"))?)
     }
 
-    pub async fn get_order_records(
+    /// Creates a new spot account.
+    ///
+    /// # Arguments
+    ///
+    /// * `encrypted_operation_key` - The encrypted operation key for the account
+    /// * `operation_key_hash` - The hash of the operation key
+    pub async fn create_spot_account(
         &self,
-        status: OrderRecordStatus,
-        limit: Option<u32>,
-        page: Option<u32>,
-        symbol: Option<String>,
-    ) -> Result<GetOrderRecordsResponse, WError> {
-        let url = format!("{}/order-records", self.path_url);
-
-        // page default to be 1 if none
-        let page = page.unwrap_or(1);
-        let limit = limit.unwrap_or(10);
-
-        let mut params = OrderRecordParams::new(status)
-            .with_limit(limit)
-            .with_page(page);
-
-        if let Some(symbol) = symbol {
-            params = params.with_symbol(symbol);
-        }
-
-        let response = self.api.get_with_params(&url, &params).await?;
-        Ok(from_str(&response).map_err(WError::from_err("get_order_records"))?)
+        encrypted_operation_key: &str,
+        operation_key_hash: &str,
+    ) -> Result<CreateSpotAccountResponse, WError> {
+        let url = format!("{}/spot-account", self.path_url);
+        let payload = serde_json::json!({
+            "encrypted_operation_key": encrypted_operation_key,
+            "operation_key_hash": operation_key_hash,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("create_spot_account"))?)
     }
 
-    pub async fn get_order_record(
+    /// Updates the spot account.
+    ///
+    /// # Arguments
+    ///
+    /// * `encrypted_operation_key` - The new encrypted operation key
+    /// * `operation_key_hash` - The new operation key hash
+    pub async fn update_spot_account(
         &self,
-        order_id: &str,
-    ) -> Result<GetOrderRecordByIdResponse, WError> {
-        let url = format!("{}/order/{}", self.path_url, order_id);
-        let response = self.api.get(&url).await?;
-        Ok(from_str(&response).map_err(WError::from_err("get_order_record"))?)
+        encrypted_operation_key: &str,
+        operation_key_hash: &str,
+    ) -> Result<UpdateSpotAccountResponse, WError> {
+        let url = format!("{}/spot-account", self.path_url);
+        let payload = serde_json::json!({
+            "encrypted_operation_key": encrypted_operation_key,
+            "operation_key_hash": operation_key_hash,
+        });
+        let response = self.api.patch(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("update_spot_account"))?)
     }
+
+    // ==================== Balance ====================
 
     /// Retrieves the current account balance for all assets.
-    ///
-    /// Returns the available and locked balances for all assets in the account.
-    /// Locked balances represent funds that are currently tied up in open orders
-    /// or pending transactions.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result` containing account balances for all assets, or a `WError` if the request fails.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let balance_response = client.accounts.get_account_balance().await?;
-    /// for balance in balance_response.balances {
-    ///     println!("{}: {} free, {} locked", 
-    ///              balance.asset, balance.free, balance.locked);
-    /// }
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// This method will return an error if:
-    /// - API authentication fails
-    /// - Network request fails
     pub async fn get_account_balance(&self) -> Result<GetAccountBalanceResponse, WError> {
         let url = format!("{}/balance", self.path_url);
         let response = self.api.get(&url).await?;
         Ok(from_str(&response).map_err(WError::from_err("get_account_balance"))?)
     }
 
+    // ==================== Deposit ====================
+
+    /// Gets the maximum deposit amount allowed.
+    pub async fn get_max_deposit(&self) -> Result<GetMaxDepositResponse, WError> {
+        let url = format!("{}/max-deposit", self.path_url);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_max_deposit"))?)
+    }
+
     /// Builds a deposit transaction for transferring assets to the DeltaDeFi protocol.
-    ///
-    /// Creates an unsigned transaction that deposits the specified assets from external
-    /// UTXOs into your DeltaDeFi account. The transaction must be signed and submitted
-    /// using `submit_deposit_transaction`.
-    ///
-    /// # Arguments
-    ///
-    /// * `deposit_amount` - Vector of assets and quantities to deposit
-    /// * `input_utxos` - Vector of UTXOs to use as inputs for the transaction
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result` containing the unsigned transaction hex, or a `WError` if building fails.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use whisky::{Asset, UTxO};
-    /// 
-    /// let deposit_assets = vec![Asset {
-    ///     asset: "ADA".to_string(),
-    ///     asset_unit: "lovelace".to_string(),
-    ///     qty: 1000000.0,  // 1 ADA
-    /// }];
-    /// 
-    /// let tx_response = client.accounts.build_deposit_transaction(
-    ///     deposit_assets,
-    ///     input_utxos
-    /// ).await?;
-    /// ```
-    ///
-    /// # Errors
-    ///
-    /// This method will return an error if:
-    /// - Insufficient funds in input UTXOs
-    /// - Invalid asset specifications
-    /// - Network request fails
     pub async fn build_deposit_transaction(
         &self,
         deposit_amount: Vec<Asset>,
@@ -223,6 +151,29 @@ impl Accounts {
         Ok(from_str(&response).map_err(WError::from_err("build_deposit_transaction"))?)
     }
 
+    /// Submits a signed deposit transaction.
+    pub async fn submit_deposit_transaction(
+        &self,
+        signed_tx: &str,
+    ) -> Result<SubmitDepositTransactionResponse, WError> {
+        let url = format!("{}/deposit/submit", self.path_url);
+        let payload = serde_json::json!({
+            "signed_tx": signed_tx,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("submit_deposit_transaction"))?)
+    }
+
+    /// Gets deposit records.
+    pub async fn get_deposit_records(&self) -> Result<GetDepositRecordsResponse, WError> {
+        let url = format!("{}/deposit-records", self.path_url);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_deposit_records"))?)
+    }
+
+    // ==================== Withdrawal ====================
+
+    /// Builds a withdrawal transaction.
     pub async fn build_withdrawal_transaction(
         &self,
         withdrawal_amount: Vec<Asset>,
@@ -235,6 +186,29 @@ impl Accounts {
         Ok(from_str(&response).map_err(WError::from_err("build_withdrawal_transaction"))?)
     }
 
+    /// Submits a signed withdrawal transaction.
+    pub async fn submit_withdrawal_transaction(
+        &self,
+        signed_tx: &str,
+    ) -> Result<SubmitWithdrawalTransactionResponse, WError> {
+        let url = format!("{}/withdrawal/submit", self.path_url);
+        let payload = serde_json::json!({
+            "signed_tx": signed_tx,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("submit_withdrawal_transaction"))?)
+    }
+
+    /// Gets withdrawal records.
+    pub async fn get_withdrawal_records(&self) -> Result<GetWithdrawalRecordsResponse, WError> {
+        let url = format!("{}/withdrawal-records", self.path_url);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_withdrawal_records"))?)
+    }
+
+    // ==================== Transferal ====================
+
+    /// Builds a transferal transaction.
     pub async fn build_transferal_transaction(
         &self,
         transferal_amount: Vec<Asset>,
@@ -249,30 +223,7 @@ impl Accounts {
         Ok(from_str(&response).map_err(WError::from_err("build_transferal_transaction"))?)
     }
 
-    pub async fn submit_deposit_transaction(
-        &self,
-        signed_tx: &str,
-    ) -> Result<SubmitDepositTransactionResponse, WError> {
-        let url = format!("{}/deposit/submit", self.path_url);
-        let payload = serde_json::json!({
-            "signed_tx": signed_tx,
-        });
-        let response = self.api.post(&url, payload).await?;
-        Ok(from_str(&response).map_err(WError::from_err("submit_deposit_transaction"))?)
-    }
-
-    pub async fn submit_withdrawal_transaction(
-        &self,
-        signed_tx: &str,
-    ) -> Result<SubmitWithdrawalTransactionResponse, WError> {
-        let url = format!("{}/withdrawal/submit", self.path_url);
-        let payload = serde_json::json!({
-            "signed_tx": signed_tx,
-        });
-        let response = self.api.post(&url, payload).await?;
-        Ok(from_str(&response).map_err(WError::from_err("submit_withdrawal_transaction"))?)
-    }
-
+    /// Submits a signed transferal transaction.
     pub async fn submit_transferal_transaction(
         &self,
         signed_tx: &str,
@@ -283,5 +234,128 @@ impl Accounts {
         });
         let response = self.api.post(&url, payload).await?;
         Ok(from_str(&response).map_err(WError::from_err("submit_transferal_transaction"))?)
+    }
+
+    /// Builds a request transferal transaction.
+    pub async fn build_request_transferal_transaction(
+        &self,
+        transferal_amount: Vec<Asset>,
+        to_address: &str,
+    ) -> Result<BuildRequestTransferalTransactionResponse, WError> {
+        let url = format!("{}/request-transferal/build", self.path_url);
+        let payload = serde_json::json!({
+            "transferal_amount": transferal_amount,
+            "to_address": to_address,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("build_request_transferal_transaction"))?)
+    }
+
+    /// Submits a signed request transferal transaction.
+    pub async fn submit_request_transferal_transaction(
+        &self,
+        signed_tx: &str,
+    ) -> Result<SubmitRequestTransferalTransactionResponse, WError> {
+        let url = format!("{}/request-transferal/submit", self.path_url);
+        let payload = serde_json::json!({
+            "signed_tx": signed_tx,
+        });
+        let response = self.api.post(&url, payload).await?;
+        Ok(from_str(&response).map_err(WError::from_err("submit_request_transferal_transaction"))?)
+    }
+
+    /// Gets transferal records.
+    pub async fn get_transferal_records(&self) -> Result<GetTransferalRecordsResponse, WError> {
+        let url = format!("{}/transferal-records", self.path_url);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_transferal_records"))?)
+    }
+
+    /// Gets a specific transferal record by transaction hash.
+    pub async fn get_transferal_record_by_tx_hash(
+        &self,
+        tx_hash: &str,
+    ) -> Result<GetTransferalRecordByTxHashResponse, WError> {
+        let url = format!("{}/transferal-records/{}", self.path_url, tx_hash);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_transferal_record_by_tx_hash"))?)
+    }
+
+    // ==================== Orders ====================
+
+    /// Gets a single order by ID.
+    pub async fn get_order(&self, order_id: &str) -> Result<GetOrderResponse, WError> {
+        let url = format!("{}/order/{}", self.path_url, order_id);
+        let response = self.api.get(&url).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_order"))?)
+    }
+
+    /// Gets open orders with optional filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - Optional trading pair symbol to filter by
+    /// * `limit` - Number of records per page (default: 10)
+    /// * `page` - Page number (default: 1)
+    pub async fn get_open_orders(
+        &self,
+        symbol: Option<String>,
+        limit: Option<u32>,
+        page: Option<u32>,
+    ) -> Result<GetOpenOrdersResponse, WError> {
+        let url = format!("{}/open-orders", self.path_url);
+        let params = OrderQueryParams {
+            symbol,
+            limit: Some(limit.unwrap_or(10)),
+            page: Some(page.unwrap_or(1)),
+        };
+        let response = self.api.get_with_params(&url, &params).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_open_orders"))?)
+    }
+
+    /// Gets trade orders (order history) with optional filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - Optional trading pair symbol to filter by
+    /// * `limit` - Number of records per page (default: 10)
+    /// * `page` - Page number (default: 1)
+    pub async fn get_trade_orders(
+        &self,
+        symbol: Option<String>,
+        limit: Option<u32>,
+        page: Option<u32>,
+    ) -> Result<GetTradeOrdersResponse, WError> {
+        let url = format!("{}/trade-orders", self.path_url);
+        let params = OrderQueryParams {
+            symbol,
+            limit: Some(limit.unwrap_or(10)),
+            page: Some(page.unwrap_or(1)),
+        };
+        let response = self.api.get_with_params(&url, &params).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_trade_orders"))?)
+    }
+
+    /// Gets account trades with optional filtering.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - Optional trading pair symbol to filter by
+    /// * `limit` - Number of records per page (default: 10)
+    /// * `page` - Page number (default: 1)
+    pub async fn get_account_trades(
+        &self,
+        symbol: Option<String>,
+        limit: Option<u32>,
+        page: Option<u32>,
+    ) -> Result<GetAccountTradesResponse, WError> {
+        let url = format!("{}/trades", self.path_url);
+        let params = OrderQueryParams {
+            symbol,
+            limit: Some(limit.unwrap_or(10)),
+            page: Some(page.unwrap_or(1)),
+        };
+        let response = self.api.get_with_params(&url, &params).await?;
+        Ok(from_str(&response).map_err(WError::from_err("get_account_trades"))?)
     }
 }

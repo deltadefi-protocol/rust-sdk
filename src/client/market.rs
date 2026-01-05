@@ -114,6 +114,10 @@ impl Market {
     ) -> Result<GetAggregatedPriceResponse, WError> {
         let symbol_str = match symbol {
             Symbol::ADAUSDM => "ADAUSDM",
+            Symbol::HOSKYUSDM => "HOSKYUSDM",
+            Symbol::NIGHTUSDM => "NIGHTUSDM",
+            Symbol::IAGUSDM => "IAGUSDM",
+            Symbol::SNEKUSDM => "SNEKUSDM",
         };
         let interval_str = match interval {
             Interval::Interval5m => "5m",
