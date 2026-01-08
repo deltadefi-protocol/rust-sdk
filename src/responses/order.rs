@@ -13,10 +13,8 @@ pub struct BuildPlaceOrderTransactionResponse {
 }
 
 /// Represents the response for submitting a place order transaction.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SubmitPlaceOrderTransactionResponse {
-    pub order: Order,
-}
+/// The API returns the Order object directly at the root level.
+pub type SubmitPlaceOrderTransactionResponse = Order;
 
 /// Represents the response for cancelling a single order.
 #[derive(Serialize, Deserialize, Debug, Clone)]

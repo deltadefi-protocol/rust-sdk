@@ -440,13 +440,23 @@ impl Api {
             .header("X-API-KEY", &self.api_key)
             .build()?;
 
-        let response = self.http_client.execute(req).await?;
+        // Capture request details for error logging
+        let method = req.method().to_string();
+        let url = req.url().to_string();
 
-        if response.status().is_success() {
+        let response = self.http_client.execute(req).await?;
+        let status = response.status();
+
+        if status.is_success() {
             *response_body = response.text().await?;
             Ok(())
         } else {
-            Err(format!("Error: {}", response.status()).into())
+            // Get response body for error details
+            let error_body = response.text().await.unwrap_or_else(|_| "<no body>".to_string());
+            Err(format!(
+                "HTTP {} {} -> {} | Response: {}",
+                method, url, status, error_body
+            ).into())
         }
     }
 
@@ -486,12 +496,18 @@ impl Api {
             .http_client
             .post(format!("{}{}", &self.base_url, url))
             .header("Content-Type", "application/json")
-            .body(json_body);
+            .body(json_body.clone());
 
         let mut response_body = String::new();
         self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("DeltaDeFi - post - send_request"))?;
+            .map_err(|e| {
+                // Include request body in error for debugging
+                WError::new(
+                    "DeltaDeFi - post - send_request",
+                    &format!("{} | Request body: {}", e, json_body),
+                )
+            })?;
         Ok(response_body)
     }
 
@@ -503,12 +519,17 @@ impl Api {
             .http_client
             .delete(format!("{}{}", &self.base_url, url))
             .header("Content-Type", "application/json")
-            .body(json_body);
+            .body(json_body.clone());
 
         let mut response_body = String::new();
         self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("DeltaDeFi - delete - send_request"))?;
+            .map_err(|e| {
+                WError::new(
+                    "DeltaDeFi - delete - send_request",
+                    &format!("{} | Request body: {}", e, json_body),
+                )
+            })?;
         Ok(response_body)
     }
 
@@ -520,12 +541,17 @@ impl Api {
             .http_client
             .patch(format!("{}{}", &self.base_url, url))
             .header("Content-Type", "application/json")
-            .body(json_body);
+            .body(json_body.clone());
 
         let mut response_body = String::new();
         self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("DeltaDeFi - patch - send_request"))?;
+            .map_err(|e| {
+                WError::new(
+                    "DeltaDeFi - patch - send_request",
+                    &format!("{} | Request body: {}", e, json_body),
+                )
+            })?;
         Ok(response_body)
     }
 }
