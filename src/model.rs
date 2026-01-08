@@ -74,6 +74,8 @@ pub enum OrderStatus {
     PartiallyCancelled,
     /// Order execution failed due to an error
     Failed,
+    /// Order has been closed (terminal state, fully executed)
+    Closed,
 }
 
 /// Order side indicating buy or sell direction.
