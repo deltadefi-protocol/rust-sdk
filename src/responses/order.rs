@@ -2,7 +2,7 @@
 //!
 //! This module contains response types for order-related API operations.
 
-use crate::model::Order;
+use crate::model::OrderJSON;
 use serde::{Deserialize, Serialize};
 
 /// Represents the response for building a place order transaction.
@@ -13,8 +13,11 @@ pub struct BuildPlaceOrderTransactionResponse {
 }
 
 /// Represents the response for submitting a place order transaction.
-/// The API returns the Order object directly at the root level.
-pub type SubmitPlaceOrderTransactionResponse = Order;
+/// The API wraps the OrderJSON in an `order` field.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SubmitPlaceOrderTransactionResponse {
+    pub order: OrderJSON,
+}
 
 /// Represents the response for cancelling a single order.
 #[derive(Serialize, Deserialize, Debug, Clone)]

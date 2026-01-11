@@ -2,7 +2,10 @@
 //!
 //! This module contains response types for account-related API operations.
 
-use crate::model::{AssetBalance, DepositRecord, Order, TransferalRecord, WithdrawalRecord};
+use crate::model::{
+    AssetBalance, DepositRecord, OrderFillingRecordJSON, OrderJSON, TransferalRecord,
+    WithdrawalRecord,
+};
 use serde::{Deserialize, Serialize};
 
 /// Represents the response for creating a new API key.
@@ -48,16 +51,24 @@ pub type GetWithdrawalRecordsResponse = Vec<WithdrawalRecord>;
 pub type GetTransferalRecordsResponse = Vec<TransferalRecord>;
 
 /// Represents the response for getting a single order.
+/// The API wraps the order in an `order_json` field.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetOrderResponse {
-    #[serde(flatten)]
-    pub order: Order,
+    pub order_json: OrderJSON,
+}
+
+/// Represents the response for getting order records (paginated).
+/// Used by getOpenOrders, getTradeOrders endpoints.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetOrderRecordResponse {
+    pub orders: Vec<OrderJSON>,
+    pub order_filling_records: Vec<OrderFillingRecordJSON>,
 }
 
 /// Represents the response for getting open orders (paginated).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetOpenOrdersResponse {
-    pub orders: Vec<Order>,
+    pub orders: Vec<OrderJSON>,
     pub total_count: i32,
     pub total_page: i32,
 }
@@ -65,7 +76,7 @@ pub struct GetOpenOrdersResponse {
 /// Represents the response for getting trade orders (paginated).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetTradeOrdersResponse {
-    pub orders: Vec<Order>,
+    pub orders: Vec<OrderJSON>,
     pub total_count: i32,
     pub total_page: i32,
 }
@@ -73,7 +84,7 @@ pub struct GetTradeOrdersResponse {
 /// Represents the response for getting account trades (paginated).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetAccountTradesResponse {
-    pub trades: Vec<Order>,
+    pub trades: Vec<OrderJSON>,
     pub total_count: i32,
     pub total_page: i32,
 }

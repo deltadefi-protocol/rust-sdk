@@ -122,6 +122,40 @@ pub enum TransactionStatus {
     Confirmed,
 }
 
+/// Transfer status for transferal records.
+///
+/// Represents the status of a transfer operation.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TransferStatus {
+    /// Transfer is pending confirmation
+    Pending,
+    /// Transfer has been confirmed on the blockchain
+    Confirmed,
+}
+
+/// Direction of a transfer.
+///
+/// Indicates whether the transfer is incoming or outgoing.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TransferDirection {
+    /// Incoming transfer (receiving assets)
+    Incoming,
+    /// Outgoing transfer (sending assets)
+    Outgoing,
+}
+
+/// Type of transferal operation.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TransferalType {
+    /// Direct transfer
+    Direct,
+    /// Request-based transfer
+    Request,
+}
+
 /// Role of a participant in an order execution.
 ///
 /// In order matching, one party provides liquidity (maker) while the other
@@ -238,6 +272,20 @@ pub struct Order {
     pub order_execution_records: Option<Vec<OrderExecutionRecord>>,
 }
 
+/// Represents an order execution record in JSON format returned by the API.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrderExecutionRecordJSON {
+    pub id: String,
+    pub order_id: String,
+    pub execution_price: String,
+    pub filled_amount: String,
+    pub fee_unit: String,
+    pub fee_amount: String,
+    pub role: OrderExecutionRole,
+    pub counter_party_order_id: String,
+    pub create_time: u64,
+}
+
 /// Represents an order filling record in JSON format (legacy compatibility).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderFillingRecordJSON {
@@ -251,16 +299,15 @@ pub struct OrderFillingRecordJSON {
     pub order_type: OrderType,
     pub fee_charged: String,
     pub fee_unit: String,
-    pub executed_price: String,
+    pub executed_price: f64,
     pub create_time: u64,
 }
 
-/// Legacy order format for backward compatibility.
-/// Use `Order` for new implementations.
+/// Order format returned by the API.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderJSON {
     pub order_id: String,
-    pub status: OrderStatus,
+    pub status: String,
     pub symbol: String,
     pub orig_qty: String,
     pub executed_qty: String,
@@ -269,11 +316,13 @@ pub struct OrderJSON {
     #[serde(rename = "type")]
     pub order_type: OrderType,
     pub fee_charged: String,
+    pub fee_unit: String,
     pub executed_price: f64,
     pub slippage: String,
-    pub create_time: i64,
-    pub update_time: i64,
-    pub fills: Option<Vec<OrderExecutionRecord>>,
+    pub create_time: u64,
+    pub update_time: u64,
+    #[serde(default)]
+    pub fills: Vec<OrderExecutionRecordJSON>,
 }
 
 /// Represents a deposit record.
@@ -297,16 +346,18 @@ pub struct WithdrawalRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TransferalRecord {
     pub created_at: String,
-    pub status: TransactionStatus,
+    pub status: TransferStatus,
     pub assets: Vec<Asset>,
-    pub to_address: String,
-    pub tx_hash: Option<String>,
+    pub transferal_type: TransferalType,
+    pub tx_hash: String,
+    pub direction: TransferDirection,
 }
 
 /// Represents an asset balance.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AssetBalance {
     pub asset: String,
+    pub asset_unit: String,
     pub free: f64,
     pub locked: f64,
 }
