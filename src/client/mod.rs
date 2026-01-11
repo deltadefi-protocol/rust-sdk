@@ -15,7 +15,10 @@ use reqwest::RequestBuilder;
 use serde::{Deserialize, Serialize};
 use whisky::{decrypt_with_cipher, WError, Wallet, WalletType};
 
-use crate::{order::SubmitPlaceOrderTransactionResponse, OrderSide, OrderType};
+use crate::{
+    order::{CancelAllOrdersResponse, CancelOrderResponse, SubmitPlaceOrderTransactionResponse},
+    OrderSide, OrderType,
+};
 
 /// Network environment configuration for DeltaDeFi API endpoints.
 ///
@@ -238,25 +241,27 @@ impl DeltaDeFi {
     /// * `symbol` - The trading pair symbol (e.g., "ADAUSDM")
     /// * `side` - Order side: `OrderSide::Buy` or `OrderSide::Sell`
     /// * `order_type` - Order type: `OrderType::Market` or `OrderType::Limit`
-    /// * `quantity` - The amount to trade
+    /// * `base_quantity` - The base asset quantity (mutually exclusive with quote_quantity)
+    /// * `quote_quantity` - The quote asset quantity (mutually exclusive with base_quantity)
     /// * `price` - Required for limit orders, ignored for market orders
-    /// * `limit_slippage` - Whether to limit slippage for market orders
     /// * `max_slippage_basis_point` - Maximum slippage in basis points (100 = 1%)
+    /// * `post_only` - If true, the order will only be posted to the order book
     ///
     /// # Returns
     ///
-    /// Returns a `Result` containing the order submission response with order ID.
+    /// Returns a `Result` containing the order submission response with order details.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// // Place a limit buy order
+    /// // Place a limit buy order with base quantity
     /// let response = client.post_order(
     ///     "ADAUSDM",
     ///     OrderSide::Buy,
     ///     OrderType::Limit,
-    ///     100.0,
-    ///     Some(1.25),  // Limit price
+    ///     Some("100.0".to_string()),  // base quantity
+    ///     None,                        // no quote quantity
+    ///     Some("1.25".to_string()),    // Limit price
     ///     None,
     ///     None,
     /// ).await?;
@@ -266,10 +271,11 @@ impl DeltaDeFi {
     ///     "ADAUSDM",
     ///     OrderSide::Sell,
     ///     OrderType::Market,
-    ///     50.0,
-    ///     None,           // No price for market orders
-    ///     Some(true),     // Enable slippage protection
-    ///     Some(100),      // Max 1% slippage
+    ///     Some("50.0".to_string()),   // base quantity
+    ///     None,
+    ///     None,                        // No price for market orders
+    ///     Some("100".to_string()),     // Max 1% slippage
+    ///     None,
     /// ).await?;
     /// ```
     ///
@@ -285,10 +291,10 @@ impl DeltaDeFi {
         symbol: &str,
         side: OrderSide,
         order_type: OrderType,
-        quantity: f64,
-        price: Option<f64>,
-        limit_slippage: Option<bool>,
-        max_slippage_basis_point: Option<u64>,
+        base_quantity: Option<String>,
+        quote_quantity: Option<String>,
+        price: Option<String>,
+        max_slippage_basis_point: Option<String>,
         post_only: Option<bool>,
     ) -> Result<SubmitPlaceOrderTransactionResponse, WError> {
         let build_res = self
@@ -297,25 +303,23 @@ impl DeltaDeFi {
                 symbol,
                 side,
                 order_type,
-                quantity,
+                base_quantity,
+                quote_quantity,
                 price,
-                limit_slippage,
                 max_slippage_basis_point,
                 post_only,
             )
             .await?;
         let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
-        let res = self
-            .order
+        self.order
             .submit_place_order_transaction(&build_res.order_id, &signed_tx)
-            .await;
-        res
+            .await
     }
 
-    /// Convenience method to cancel an existing order with automatic transaction building and signing.
+    /// Convenience method to cancel an existing order.
     ///
-    /// This method builds the cancel order transaction, signs it with the operation key,
-    /// and submits it to the DeltaDeFi protocol in a single call.
+    /// This method directly cancels an order without requiring transaction signing.
+    /// The cancellation is processed immediately by the DeltaDeFi platform.
     ///
     /// # Arguments
     ///
@@ -323,67 +327,60 @@ impl DeltaDeFi {
     ///
     /// # Returns
     ///
-    /// Returns a `Result` indicating success or failure of the cancellation.
+    /// Returns a `Result` containing the cancelled order ID or a `WError` if cancellation fails.
     ///
     /// # Examples
     ///
     /// ```rust
     /// // Cancel an order by its ID
-    /// client.cancel_order("order-id-123").await?;
+    /// let response = client.cancel_order("order-id-123").await?;
+    /// println!("Cancelled order: {}", response.order_id);
     /// ```
     ///
     /// # Errors
     ///
     /// This method will return an error if:
-    /// - No operation wallet is loaded (call `load_operation_key` first)
     /// - Order ID is invalid or order doesn't exist
     /// - Order cannot be cancelled (already filled or cancelled)
     /// - Network request fails
-    /// - Transaction signing fails
-    pub async fn cancel_order(&self, order_id: &str) -> Result<(), WError> {
-        let build_res = self.order.build_cancel_order_transaction(order_id).await?;
-        let signed_tx = self.sign_tx_by_operation_key(&build_res.tx_hex)?;
-        self.order
-            .submit_cancel_order_transaction(&signed_tx)
-            .await?;
-        Ok(())
+    pub async fn cancel_order(&self, order_id: &str) -> Result<CancelOrderResponse, WError> {
+        self.order.cancel_order(order_id).await
     }
 
-    /// Convenience method to cancel all open orders with automatic transaction building and signing.
+    /// Convenience method to cancel all open orders for a specific trading symbol.
     ///
-    /// This method builds cancel transactions for all currently open orders, signs each transaction
-    /// with the operation key, and submits them to the DeltaDeFi protocol in a single batch operation.
+    /// This method directly cancels all open orders for the specified symbol
+    /// without requiring transaction signing. The cancellation is processed
+    /// immediately by the DeltaDeFi platform.
+    ///
+    /// # Arguments
+    ///
+    /// * `symbol` - The trading pair symbol (e.g., "ADAUSDM")
     ///
     /// # Returns
     ///
-    /// Returns a `Result` indicating success or failure of the bulk cancellation.
+    /// Returns a `Result` containing the symbol and list of cancelled order IDs,
+    /// or a `WError` if cancellation fails.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// // Cancel all open orders
-    /// client.cancel_all_orders().await?;
+    /// // Cancel all open orders for ADAUSDM
+    /// let response = client.cancel_all_orders("ADAUSDM").await?;
+    /// println!("Cancelled {} orders for {}", response.order_ids.len(), response.symbol);
     /// ```
     ///
     /// # Errors
     ///
     /// This method will return an error if:
-    /// - No operation wallet is loaded (call `load_operation_key` first)
+    /// - Symbol is invalid
     /// - No open orders exist to cancel
     /// - Network request fails
-    /// - Transaction signing fails for any of the orders
-    /// - Batch submission to the protocol fails
-    pub async fn cancel_all_orders(&self) -> Result<(), WError> {
-        let build_res = self.order.build_cancel_all_orders_transaction().await?;
-        let mut signed_txs = vec![];
-        for tx_hex in build_res.tx_hexes.iter() {
-            let signed_tx = self.sign_tx_by_operation_key(tx_hex)?;
-            signed_txs.push(signed_tx);
-        }
-        self.order
-            .submit_cancel_all_orders_transaction(&signed_txs)
-            .await?;
-        Ok(())
+    pub async fn cancel_all_orders(
+        &self,
+        symbol: &str,
+    ) -> Result<CancelAllOrdersResponse, WError> {
+        self.order.cancel_all_orders(symbol).await
     }
 }
 
@@ -443,13 +440,23 @@ impl Api {
             .header("X-API-KEY", &self.api_key)
             .build()?;
 
-        let response = self.http_client.execute(req).await?;
+        // Capture request details for error logging
+        let method = req.method().to_string();
+        let url = req.url().to_string();
 
-        if response.status().is_success() {
+        let response = self.http_client.execute(req).await?;
+        let status = response.status();
+
+        if status.is_success() {
             *response_body = response.text().await?;
             Ok(())
         } else {
-            Err(format!("Error: {}", response.status()).into())
+            // Get response body for error details
+            let error_body = response.text().await.unwrap_or_else(|_| "<no body>".to_string());
+            Err(format!(
+                "HTTP {} {} -> {} | Response: {}",
+                method, url, status, error_body
+            ).into())
         }
     }
 
@@ -489,29 +496,62 @@ impl Api {
             .http_client
             .post(format!("{}{}", &self.base_url, url))
             .header("Content-Type", "application/json")
-            .body(json_body);
+            .body(json_body.clone());
 
         let mut response_body = String::new();
         self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("DeltaDeFi - post - send_request"))?;
+            .map_err(|e| {
+                // Include request body in error for debugging
+                WError::new(
+                    "DeltaDeFi - post - send_request",
+                    &format!("{} | Request body: {}", e, json_body),
+                )
+            })?;
         Ok(response_body)
     }
 
     pub async fn delete<T: Serialize>(&self, url: &str, body: T) -> Result<String, WError> {
         let json_body = serde_json::to_string(&body)
-            .map_err(WError::from_err("DeltaDeFi - post - json_body"))?;
+            .map_err(WError::from_err("DeltaDeFi - delete - json_body"))?;
 
         let req = self
             .http_client
             .delete(format!("{}{}", &self.base_url, url))
             .header("Content-Type", "application/json")
-            .body(json_body);
+            .body(json_body.clone());
 
         let mut response_body = String::new();
         self.send_request(req, &mut response_body)
             .await
-            .map_err(WError::from_err("DeltaDeFi - post - send_request"))?;
+            .map_err(|e| {
+                WError::new(
+                    "DeltaDeFi - delete - send_request",
+                    &format!("{} | Request body: {}", e, json_body),
+                )
+            })?;
+        Ok(response_body)
+    }
+
+    pub async fn patch<T: Serialize>(&self, url: &str, body: T) -> Result<String, WError> {
+        let json_body = serde_json::to_string(&body)
+            .map_err(WError::from_err("DeltaDeFi - patch - json_body"))?;
+
+        let req = self
+            .http_client
+            .patch(format!("{}{}", &self.base_url, url))
+            .header("Content-Type", "application/json")
+            .body(json_body.clone());
+
+        let mut response_body = String::new();
+        self.send_request(req, &mut response_body)
+            .await
+            .map_err(|e| {
+                WError::new(
+                    "DeltaDeFi - patch - send_request",
+                    &format!("{} | Request body: {}", e, json_body),
+                )
+            })?;
         Ok(response_body)
     }
 }
