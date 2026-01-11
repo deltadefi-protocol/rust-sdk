@@ -60,18 +60,14 @@ pub enum Interval {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum OrderStatus {
+    /// Order transaction is being built
+    Building,
     /// Order is being processed by the system
     Processing,
     /// Order is active and waiting to be matched
     Open,
-    /// Order has been completely executed
-    FullyFilled,
-    /// Order has been partially executed with remaining quantity open
-    PartiallyFilled,
-    /// Order has been cancelled before any execution
+    /// Order has been cancelled
     Cancelled,
-    /// Order was partially filled and then cancelled
-    PartiallyCancelled,
     /// Order execution failed due to an error
     Failed,
     /// Order has been closed (terminal state, fully executed)
@@ -215,6 +211,9 @@ pub struct OrderExecutionRecord {
 }
 
 /// Represents an order response from the API.
+///
+/// This struct matches the API's `OrderResponse` format exactly.
+/// The type alias `OrderResponse` is provided for API naming consistency.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
     /// Unique order identifier
@@ -272,7 +271,14 @@ pub struct Order {
     pub order_execution_records: Option<Vec<OrderExecutionRecord>>,
 }
 
+/// Type alias for Order to match API naming convention.
+pub type OrderResponse = Order;
+
+/// Type alias for OrderExecutionRecord to match API naming convention.
+pub type OrderExecutionRecordResponse = OrderExecutionRecord;
+
 /// Represents an order execution record in JSON format returned by the API.
+#[deprecated(since = "0.2.0", note = "Use OrderExecutionRecord instead")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderExecutionRecordJSON {
     pub id: String,
@@ -287,6 +293,7 @@ pub struct OrderExecutionRecordJSON {
 }
 
 /// Represents an order filling record in JSON format (legacy compatibility).
+#[deprecated(since = "0.2.0", note = "Use OrderExecutionRecord instead")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderFillingRecordJSON {
     pub execution_id: String,
@@ -304,6 +311,7 @@ pub struct OrderFillingRecordJSON {
 }
 
 /// Order format returned by the API.
+#[deprecated(since = "0.2.0", note = "Use Order (or OrderResponse type alias) instead")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OrderJSON {
     pub order_id: String,
@@ -368,4 +376,17 @@ pub struct Asset {
     pub asset: String,
     pub asset_unit: String,
     pub qty: f64,
+}
+
+/// Generic paginated response wrapper matching API format.
+///
+/// Used for endpoints that return paginated lists of items.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PaginatedResponse<T> {
+    /// The data items for the current page
+    pub data: Vec<T>,
+    /// Total count of items across all pages
+    pub total_count: i64,
+    /// Total number of pages
+    pub total_page: i64,
 }

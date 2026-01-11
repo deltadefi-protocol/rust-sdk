@@ -2,9 +2,10 @@
 //!
 //! This module contains response types for account-related API operations.
 
+#[allow(deprecated)]
 use crate::model::{
-    AssetBalance, DepositRecord, OrderFillingRecordJSON, OrderJSON, TransferalRecord,
-    WithdrawalRecord,
+    AssetBalance, DepositRecord, Order, OrderFillingRecordJSON, OrderJSON, PaginatedResponse,
+    TransferalRecord, WithdrawalRecord,
 };
 use serde::{Deserialize, Serialize};
 
@@ -51,43 +52,31 @@ pub type GetWithdrawalRecordsResponse = Vec<WithdrawalRecord>;
 pub type GetTransferalRecordsResponse = Vec<TransferalRecord>;
 
 /// Represents the response for getting a single order.
-/// The API wraps the order in an `order_json` field.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetOrderResponse {
-    pub order_json: OrderJSON,
-}
+/// The API returns the Order directly (not wrapped).
+pub type GetOrderResponse = Order;
 
 /// Represents the response for getting order records (paginated).
 /// Used by getOpenOrders, getTradeOrders endpoints.
+#[deprecated(since = "0.2.0", note = "Use PaginatedResponse<Order> instead")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetOrderRecordResponse {
+    #[allow(deprecated)]
     pub orders: Vec<OrderJSON>,
+    #[allow(deprecated)]
     pub order_filling_records: Vec<OrderFillingRecordJSON>,
 }
 
 /// Represents the response for getting open orders (paginated).
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetOpenOrdersResponse {
-    pub orders: Vec<OrderJSON>,
-    pub total_count: i32,
-    pub total_page: i32,
-}
+/// The API returns a PaginatedResponse with `data` field containing orders.
+pub type GetOpenOrdersResponse = PaginatedResponse<Order>;
 
 /// Represents the response for getting trade orders (paginated).
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetTradeOrdersResponse {
-    pub orders: Vec<OrderJSON>,
-    pub total_count: i32,
-    pub total_page: i32,
-}
+/// The API returns a PaginatedResponse with `data` field containing orders.
+pub type GetTradeOrdersResponse = PaginatedResponse<Order>;
 
 /// Represents the response for getting account trades (paginated).
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetAccountTradesResponse {
-    pub trades: Vec<OrderJSON>,
-    pub total_count: i32,
-    pub total_page: i32,
-}
+/// The API returns a PaginatedResponse with `data` field containing orders.
+pub type GetAccountTradesResponse = PaginatedResponse<Order>;
 
 /// Represents the response for building a withdrawal transaction.
 #[derive(Serialize, Deserialize, Debug, Clone)]
