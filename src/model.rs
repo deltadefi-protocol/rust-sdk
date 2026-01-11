@@ -366,16 +366,19 @@ pub struct TransferalRecord {
 pub struct AssetBalance {
     pub asset: String,
     pub asset_unit: String,
-    pub free: f64,
-    pub locked: f64,
+    /// Free balance as decimal string for precision
+    pub free: String,
+    /// Locked balance as decimal string for precision
+    pub locked: String,
 }
 
-/// Represents an asset (placeholder for the actual definition).
+/// Represents an asset with quantity.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Asset {
     pub asset: String,
     pub asset_unit: String,
-    pub qty: f64,
+    /// Quantity as decimal string for precision
+    pub qty: String,
 }
 
 /// Generic paginated response wrapper matching API format.
