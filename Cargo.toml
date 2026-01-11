@@ -9,8 +9,7 @@ description = "The Rust SDK for DeltaDeFi"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# whisky = { version = "1.0.18", default-features = false, features = ["wallet"] }
-whisky = { path = "../../../sidan/whisky/packages/whisky", default-features = false, features = ["wallet"] }
+whisky = { version = "1.0.18", default-features = false, features = ["wallet"] }
 hex = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
