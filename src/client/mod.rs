@@ -5,11 +5,15 @@
 
 mod accounts;
 mod market;
+mod market_stream;
 mod order;
+mod stream;
 
 use accounts::Accounts;
 use market::Market;
 use order::Order;
+pub use market_stream::{MarketStream, MarketStreamEvent, MarketStreamHandle};
+pub use stream::{AccountStream, ReconnectConfig, StreamError, StreamEvent, StreamHandle};
 
 use reqwest::RequestBuilder;
 use serde::{Deserialize, Serialize};
@@ -42,6 +46,7 @@ pub enum Stage {
 /// - Market data (prices, historical data)
 /// - Order operations (place, cancel, track orders)
 /// - Wallet operations (transaction signing)
+/// - Real-time streaming (account updates, market data)
 ///
 /// # Examples
 ///
@@ -61,6 +66,10 @@ pub struct DeltaDeFi {
     pub market: Market,
     /// Order management operations
     pub order: Order,
+    /// Account stream for real-time account updates (balance, orders, points)
+    pub stream: AccountStream,
+    /// Market stream for real-time market data (depth, price, trades, OHLC)
+    pub market_stream: MarketStream,
     /// Optional master wallet for transaction signing
     pub master_wallet: Option<Wallet>,
     /// Optional operation wallet for transaction signing
@@ -115,7 +124,9 @@ impl DeltaDeFi {
         Ok(DeltaDeFi {
             accounts: Accounts::new(api.clone()),
             market: Market::new(api.clone()),
-            order: Order::new(api),
+            order: Order::new(api.clone()),
+            stream: AccountStream::new(api.ws_url.clone(), api.api_key.clone()),
+            market_stream: MarketStream::new(api.ws_url.clone()),
             master_wallet,
             operation_wallet: None,
         })
@@ -381,6 +392,60 @@ impl DeltaDeFi {
         symbol: &str,
     ) -> Result<CancelAllOrdersResponse, WError> {
         self.order.cancel_all_orders(symbol).await
+    }
+
+    /// Subscribe to the account stream for real-time updates.
+    ///
+    /// This method establishes a WebSocket connection to receive real-time
+    /// notifications about balance changes, order updates, and DLTA points.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer_size` - Optional size of the message buffer (default: 100)
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing:
+    /// - `StreamHandle` - Handle to control the stream connection
+    /// - `mpsc::Receiver<StreamMessage>` - Receiver for stream messages
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use deltadefi::{DeltaDeFi, Stage, StreamMessage};
+    ///
+    /// let client = DeltaDeFi::new("api-key".to_string(), Stage::Staging, None)?;
+    ///
+    /// let (mut handle, mut receiver) = client.subscribe_account_stream(None).await?;
+    ///
+    /// // Process messages
+    /// while let Some(message) = receiver.recv().await {
+    ///     match message {
+    ///         StreamMessage::Balance(msg) => {
+    ///             for balance in &msg.balance {
+    ///                 println!("{}: free={}, locked={}", balance.asset, balance.free, balance.locked);
+    ///             }
+    ///         }
+    ///         StreamMessage::OrderInfo(msg) => {
+    ///             println!("Order {} is now {:?}", msg.order.id, msg.order.status);
+    ///         }
+    ///         StreamMessage::DltaPoints(msg) => {
+    ///             println!("Earned {} points! Total: {}", msg.dlta_points.delta, msg.dlta_points.new_total);
+    ///         }
+    ///         StreamMessage::Unknown(raw) => {
+    ///             eprintln!("Unknown message: {}", raw);
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// // Close when done
+    /// handle.close().await;
+    /// ```
+    pub async fn subscribe_account_stream(
+        &self,
+        buffer_size: Option<usize>,
+    ) -> Result<(StreamHandle, tokio::sync::mpsc::Receiver<crate::responses::stream::StreamMessage>), WError> {
+        self.stream.subscribe(buffer_size).await
     }
 }
 
