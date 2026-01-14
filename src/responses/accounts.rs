@@ -2,10 +2,8 @@
 //!
 //! This module contains response types for account-related API operations.
 
-#[allow(deprecated)]
 use crate::model::{
-    AssetBalance, DepositRecord, Order, OrderFillingRecordJSON, OrderJSON, PaginatedResponse,
-    TransferalRecord, WithdrawalRecord,
+    AssetBalance, DepositRecord, Order, PaginatedResponse, TransferalRecord, WithdrawalRecord,
 };
 use serde::{Deserialize, Serialize};
 
@@ -54,17 +52,6 @@ pub type GetTransferalRecordsResponse = Vec<TransferalRecord>;
 /// Represents the response for getting a single order.
 /// The API returns the Order directly (not wrapped).
 pub type GetOrderResponse = Order;
-
-/// Represents the response for getting order records (paginated).
-/// Used by getOpenOrders, getTradeOrders endpoints.
-#[deprecated(since = "0.2.0", note = "Use PaginatedResponse<Order> instead")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetOrderRecordResponse {
-    #[allow(deprecated)]
-    pub orders: Vec<OrderJSON>,
-    #[allow(deprecated)]
-    pub order_filling_records: Vec<OrderFillingRecordJSON>,
-}
 
 /// Represents the response for getting open orders (paginated).
 /// The API returns a PaginatedResponse with `data` field containing orders.

@@ -277,62 +277,6 @@ pub type OrderResponse = Order;
 /// Type alias for OrderExecutionRecord to match API naming convention.
 pub type OrderExecutionRecordResponse = OrderExecutionRecord;
 
-/// Represents an order execution record in JSON format returned by the API.
-#[deprecated(since = "0.2.0", note = "Use OrderExecutionRecord instead")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OrderExecutionRecordJSON {
-    pub id: String,
-    pub order_id: String,
-    pub execution_price: String,
-    pub filled_amount: String,
-    pub fee_unit: String,
-    pub fee_amount: String,
-    pub role: OrderExecutionRole,
-    pub counter_party_order_id: String,
-    pub create_time: u64,
-}
-
-/// Represents an order filling record in JSON format (legacy compatibility).
-#[deprecated(since = "0.2.0", note = "Use OrderExecutionRecord instead")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OrderFillingRecordJSON {
-    pub execution_id: String,
-    pub order_id: String,
-    pub status: String,
-    pub symbol: String,
-    pub executed_qty: String,
-    pub side: OrderSide,
-    #[serde(rename = "type")]
-    pub order_type: OrderType,
-    pub fee_charged: String,
-    pub fee_unit: String,
-    pub executed_price: f64,
-    pub create_time: u64,
-}
-
-/// Order format returned by the API.
-#[deprecated(since = "0.2.0", note = "Use Order (or OrderResponse type alias) instead")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OrderJSON {
-    pub order_id: String,
-    pub status: String,
-    pub symbol: String,
-    pub orig_qty: String,
-    pub executed_qty: String,
-    pub side: OrderSide,
-    pub price: f64,
-    #[serde(rename = "type")]
-    pub order_type: OrderType,
-    pub fee_charged: String,
-    pub fee_unit: String,
-    pub executed_price: f64,
-    pub slippage: String,
-    pub create_time: u64,
-    pub update_time: u64,
-    #[serde(default)]
-    pub fills: Vec<OrderExecutionRecordJSON>,
-}
-
 /// Represents a deposit record.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DepositRecord {
