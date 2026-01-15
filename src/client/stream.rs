@@ -346,7 +346,7 @@ impl AccountStream {
         let (close_tx, mut close_rx) = mpsc::channel::<()>(1);
 
         // Build WebSocket URL with authentication
-        let ws_endpoint = format!("{}/accounts/ws/stream?api_key={}", self.ws_url, self.api_key);
+        let ws_endpoint = format!("{}/accounts/stream?api_key={}", self.ws_url, self.api_key);
 
         // Connect to WebSocket with timeout
         let connect_timeout = Duration::from_secs(30);
@@ -457,7 +457,7 @@ impl AccountStream {
         let (event_tx, event_rx) = mpsc::channel::<StreamEvent>(buffer);
         let (close_tx, close_rx) = mpsc::channel::<()>(1);
 
-        let ws_endpoint = format!("{}/accounts/ws/stream?api_key={}", self.ws_url, self.api_key);
+        let ws_endpoint = format!("{}/accounts/stream?api_key={}", self.ws_url, self.api_key);
 
         // Spawn the reconnecting stream task
         tokio::spawn(Self::run_reconnecting_stream(
