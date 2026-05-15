@@ -13,6 +13,7 @@ use serde_json::from_str;
 use whisky::{Asset, UTxO, WError};
 
 use super::Api;
+use crate::requests::{BuildTransferalTransactionRequest, BuildWithdrawalTransactionRequest};
 use crate::responses::accounts::*;
 
 /// Query parameters for paginated order requests.
@@ -174,15 +175,19 @@ impl Accounts {
     // ==================== Withdrawal ====================
 
     /// Builds a withdrawal transaction.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Withdrawal parameters. For a standard withdrawal, build with
+    ///   [`BuildWithdrawalTransactionRequest::new`]. For an owner-only vault
+    ///   withdrawal, use [`BuildWithdrawalTransactionRequest::new_vault`] and
+    ///   optionally chain [`with_from_account_id`](BuildWithdrawalTransactionRequest::with_from_account_id).
     pub async fn build_withdrawal_transaction(
         &self,
-        withdrawal_amount: Vec<Asset>,
+        request: BuildWithdrawalTransactionRequest,
     ) -> Result<BuildWithdrawalTransactionResponse, WError> {
         let url = format!("{}/withdrawal/build", self.path_url);
-        let payload = serde_json::json!({
-            "withdrawal_amount": withdrawal_amount,
-        });
-        let response = self.api.post(&url, payload).await?;
+        let response = self.api.post(&url, request).await?;
         Ok(from_str(&response).map_err(WError::from_err("build_withdrawal_transaction"))?)
     }
 
@@ -209,17 +214,19 @@ impl Accounts {
     // ==================== Transferal ====================
 
     /// Builds a transferal transaction.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Transferal parameters. Either `to_address` or `to_account_id`
+    ///   must be set; use [`BuildTransferalTransactionRequest::to_address`] or
+    ///   [`BuildTransferalTransactionRequest::to_account_id`] respectively. Chain
+    ///   `with_transferal_type`, `with_vault_id`, `with_from_account_id` as needed.
     pub async fn build_transferal_transaction(
         &self,
-        transferal_amount: Vec<Asset>,
-        to_address: &str,
+        request: BuildTransferalTransactionRequest,
     ) -> Result<BuildTransferalTransactionResponse, WError> {
         let url = format!("{}/transferal/build", self.path_url);
-        let payload = serde_json::json!({
-            "transferal_amount": transferal_amount,
-            "to_address": to_address,
-        });
-        let response = self.api.post(&url, payload).await?;
+        let response = self.api.post(&url, request).await?;
         Ok(from_str(&response).map_err(WError::from_err("build_transferal_transaction"))?)
     }
 

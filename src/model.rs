@@ -143,13 +143,18 @@ pub enum TransferDirection {
 }
 
 /// Type of transferal operation.
+///
+/// Mirrors the backend `schema.TransferalType` enum. Used both for request
+/// bodies (`transferal/build`, `request-transferal/build`) and record fields
+/// returned from history endpoints. Note: `Rebate` is server-emitted only and
+/// is not a valid value for build requests.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "lowercase")]
 pub enum TransferalType {
-    /// Direct transfer
-    Direct,
-    /// Request-based transfer
-    Request,
+    Normal,
+    Deposit,
+    Withdrawal,
+    Rebate,
 }
 
 /// Role of a participant in an order execution.

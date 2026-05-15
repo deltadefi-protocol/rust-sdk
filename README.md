@@ -375,7 +375,9 @@ async fn manage_account(client: &DeltaDeFi) -> Result<(), Box<dyn std::error::Er
     }];
 
     let withdrawal_tx = client.accounts
-        .build_withdrawal_transaction(withdrawal_amount)
+        .build_withdrawal_transaction(
+            BuildWithdrawalTransactionRequest::new(withdrawal_amount),
+        )
         .await?;
 
     // Sign the transaction
